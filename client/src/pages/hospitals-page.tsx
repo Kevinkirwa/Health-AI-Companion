@@ -21,7 +21,7 @@ const HospitalsPage = () => {
       try {
         const params = new URLSearchParams();
         if (location) params.append("location", location);
-        if (specialty) params.append("specialty", specialty);
+        if (specialty && specialty !== "all") params.append("specialty", specialty);
 
         const res = await fetch(`/api/hospitals?${params.toString()}`);
         if (!res.ok) {
@@ -117,7 +117,7 @@ const HospitalsPage = () => {
                   <SelectValue placeholder="All Specialties" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Specialties</SelectItem>
+                  <SelectItem value="all">All Specialties</SelectItem>
                   <SelectItem value="general">General Hospital</SelectItem>
                   <SelectItem value="emergency">Emergency Care</SelectItem>
                   <SelectItem value="pediatric">Pediatric</SelectItem>
