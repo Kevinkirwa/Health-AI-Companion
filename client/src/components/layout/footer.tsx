@@ -47,29 +47,37 @@ const Footer = () => {
           <div>
             <h3 className="text-white font-semibold mb-4">Company</h3>
             <ul className="space-y-2">
-              <li><a href="#" className="hover:text-white">About Us</a></li>
-              <li><a href="#" className="hover:text-white">Our Team</a></li>
-              <li><a href="#" className="hover:text-white">Careers</a></li>
-              <li><a href="#" className="hover:text-white">Press</a></li>
-              <li><a href="#" className="hover:text-white">Contact</a></li>
+              <li><Link href="/" className="hover:text-white">About Us</Link></li>
+              <li><Link href="/" className="hover:text-white">Our Team</Link></li>
+              <li><Link href="/" className="hover:text-white">Careers</Link></li>
+              <li><Link href="/" className="hover:text-white">Press</Link></li>
+              <li><Link href="/" className="hover:text-white">Contact</Link></li>
             </ul>
           </div>
           
           <div>
             <h3 className="text-white font-semibold mb-4">Legal</h3>
             <ul className="space-y-2">
-              <li><a href="#" className="hover:text-white">Privacy Policy</a></li>
-              <li><a href="#" className="hover:text-white">Terms of Service</a></li>
-              <li><a href="#" className="hover:text-white">Cookie Policy</a></li>
-              <li><a href="#" className="hover:text-white">HIPAA Compliance</a></li>
-              <li><a href="#" className="hover:text-white">Disclaimer</a></li>
+              <li><Link href="/" className="hover:text-white">Privacy Policy</Link></li>
+              <li><Link href="/" className="hover:text-white">Terms of Service</Link></li>
+              <li><Link href="/" className="hover:text-white">Cookie Policy</Link></li>
+              <li><Link href="/" className="hover:text-white">HIPAA Compliance</Link></li>
+              <li><Link href="/" className="hover:text-white">Disclaimer</Link></li>
             </ul>
           </div>
         </div>
         
-        <div className="border-t border-gray-800 mt-8 pt-6 text-center text-sm">
-          <p>&copy; {currentYear} AI Health Assistant. All rights reserved.</p>
-          <p className="mt-2">Disclaimer: This application provides general health information and is not a substitute for professional medical advice.</p>
+        <div className="border-t border-gray-800 mt-8 pt-6 text-center">
+          <div className="mb-4">
+            <h4 className="text-white font-semibold text-base mb-2">About the Founder</h4>
+            <p className="text-gray-400 text-sm">
+              AI Health Assistant was founded by <span className="text-primary-400 font-medium">Kirwa</span>, 
+              with a vision to make quality healthcare information accessible to everyone through 
+              the power of artificial intelligence.
+            </p>
+          </div>
+          <p className="text-sm">&copy; {currentYear} AI Health Assistant. All rights reserved.</p>
+          <p className="mt-2 text-sm">Disclaimer: This application provides general health information and is not a substitute for professional medical advice.</p>
         </div>
       </div>
     </footer>
