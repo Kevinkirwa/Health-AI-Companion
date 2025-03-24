@@ -17,6 +17,9 @@ import Footer from "@/components/layout/footer";
 import { LanguageProvider } from "@/components/ui/language-selector";
 
 function Router() {
+  // Adding console logs for debugging
+  console.log("Router component rendering");
+  
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
@@ -40,6 +43,8 @@ function Router() {
 }
 
 function App() {
+  console.log("App component rendering");
+  
   return (
     <ThemeProvider>
       <AuthProvider>

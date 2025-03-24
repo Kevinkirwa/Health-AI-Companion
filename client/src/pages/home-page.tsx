@@ -5,6 +5,7 @@ import FeaturesGrid from "@/components/ui/features-grid";
 import Testimonials from "@/components/ui/testimonials";
 import LoginModal from "@/components/ui/login-modal";
 import { useAuth } from "@/hooks/use-auth";
+import { MessageCircle, Calendar, Brain, Heart, MessageSquareText, CalendarPlus } from "lucide-react";
 
 const HomePage = () => {
   const { user } = useAuth();
@@ -12,28 +13,28 @@ const HomePage = () => {
 
   const features = [
     {
-      icon: <i className="fas fa-robot text-primary-600 dark:text-primary-400 text-2xl"></i>,
+      icon: <MessageCircle className="w-6 h-6" />,
       title: "AI Health Chatbot",
       description: "Get instant responses to your health concerns with our AI-powered chatbot.",
       bgColorClass: "bg-primary-100 dark:bg-primary-900",
       iconColorClass: "text-primary-600 dark:text-primary-400"
     },
     {
-      icon: <i className="fas fa-hospital text-primary-600 dark:text-primary-400 text-2xl"></i>,
+      icon: <Calendar className="w-6 h-6" />,
       title: "Nearest Hospitals",
       description: "Find hospitals near you with real-time availability and directions.",
       bgColorClass: "bg-primary-100 dark:bg-primary-900",
       iconColorClass: "text-primary-600 dark:text-primary-400"
     },
     {
-      icon: <i className="fas fa-brain text-mental-600 dark:text-mental-400 text-2xl"></i>,
+      icon: <Brain className="w-6 h-6" />,
       title: "Mental Health Support",
       description: "Access resources, exercises, and AI guidance for mental wellness.",
-      bgColorClass: "bg-mental-100 dark:bg-mental-900",
-      iconColorClass: "text-mental-600 dark:text-mental-400"
+      bgColorClass: "bg-blue-100 dark:bg-blue-900",
+      iconColorClass: "text-blue-600 dark:text-blue-400"
     },
     {
-      icon: <i className="fas fa-kit-medical text-red-600 dark:text-red-400 text-2xl"></i>,
+      icon: <Heart className="w-6 h-6" />,
       title: "First-Aid Tips",
       description: "Quick access to emergency procedures and first-aid instructions.",
       bgColorClass: "bg-red-100 dark:bg-red-900",
