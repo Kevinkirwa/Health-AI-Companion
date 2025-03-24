@@ -3,9 +3,55 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+    <title>AI Health Assistant</title>
+    <meta name="description" content="AI-powered health guidance and support for everyone, anywhere." />
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#1e40af" />
+    <link rel="icon" type="image/png" href="/icons/icon-192x192.png" />
+    <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
+    <!-- Meta tags for better SEO and social sharing -->
+    <meta property="og:title" content="AI Health Assistant" />
+    <meta property="og:description" content="AI-powered health guidance and support for everyone, anywhere." />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="/icons/og-image.png" />
+    <meta name="twitter:card" content="summary_large_image" />
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // Register service worker for PWA support
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/service-worker.js')
+            .then(registration => {
+              console.log('ServiceWorker registration successful with scope: ', registration.scope);
+            })
+            .catch(error => {
+              console.log('ServiceWorker registration failed: ', error);
+            });
+        });
+      }
+    </script>
+    <!-- Add offline notification element -->
+    <div id="offline-notification" 
+         style="display: none; position: fixed; bottom: 20px; right: 20px; background: #ff4757; color: white; padding: 12px 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 9999;">
+      You are currently offline. Some features may be limited.
+    </div>
+    <script>
+      // Check for online/offline status
+      window.addEventListener('online', () => {
+        document.getElementById('offline-notification').style.display = 'none';
+      });
+      
+      window.addEventListener('offline', () => {
+        document.getElementById('offline-notification').style.display = 'block';
+      });
+      
+      // Check initial status
+      if (!navigator.onLine) {
+        document.getElementById('offline-notification').style.display = 'block';
+      }
+    </script>
   </body>
 </html>
