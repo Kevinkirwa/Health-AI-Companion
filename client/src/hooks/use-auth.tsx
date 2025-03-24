@@ -111,58 +111,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 export function useAuth() {
   const context = useContext(AuthContext);
   if (!context) {
-    // Return a default context with null values instead of throwing error
-    console.warn("useAuth was called outside of AuthProvider. Using fallback context.");
-    return {
-      user: null,
-      isLoading: false,
-      error: null,
-      loginMutation: {
-        mutate: () => {},
-        isPending: false,
-        isSuccess: false,
-        isError: false,
-        data: null,
-        error: null,
-        reset: () => {},
-        context: null,
-        failureCount: 0,
-        failureReason: null,
-        status: 'idle',
-        variables: null,
-        mutateAsync: async () => ({} as any),
-      } as any,
-      logoutMutation: {
-        mutate: () => {},
-        isPending: false,
-        isSuccess: false,
-        isError: false,
-        data: null,
-        error: null,
-        reset: () => {},
-        context: null,
-        failureCount: 0,
-        failureReason: null,
-        status: 'idle',
-        variables: null,
-        mutateAsync: async () => ({} as any),
-      } as any,
-      registerMutation: {
-        mutate: () => {},
-        isPending: false,
-        isSuccess: false,
-        isError: false,
-        data: null,
-        error: null,
-        reset: () => {},
-        context: null,
-        failureCount: 0,
-        failureReason: null,
-        status: 'idle',
-        variables: null,
-        mutateAsync: async () => ({} as any),
-      } as any,
-    };
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 }
