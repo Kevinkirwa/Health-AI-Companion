@@ -1,0 +1,90 @@
+Generate a full-stack AI-powered health website called **"AI Health Assistant"** with the following features and pages:
+
+## **Tech Stack:**
+- **Frontend:** React + Vite + Tailwind CSS
+- **Backend:** Node.js + Express
+- **Database:** MongoDB Atlas
+- **AI Model:** Gemini AI API (Symptom analysis, first-aid, mental health support)
+- **APIs:** Google Maps API (Nearest hospitals), M-Pesa API (Doctor payments)
+
+---
+
+## **Design Requirements**
+- **Modern, sleek, and intuitive UI** with Tailwind CSS.
+- **Clean and professional UI components** with well-organized sections.
+- **Dark & Light mode toggle** for accessibility.
+- **Mobile-friendly and responsive design.**
+- **Animations & smooth transitions** for user engagement.
+
+---
+
+## **Website Pages & Sections**
+
+### **1. Home Page**
+- Engaging hero section with a **search bar for hospital booking** and chatbot access.
+- Quick links to **Nearest Hospitals, Chatbot, Mental Health Support, First-Aid Tips.**
+- Testimonials from satisfied users.
+- Call-to-action buttons for **Booking Appointments & AI Consultation.**
+
+### **2. AI Health Chatbot Page**
+- **Chat interface** for AI-powered health assistance.
+- Users enter symptoms and receive AI-generated suggestions.
+- **Live typing effect** for chatbot responses.
+- **Chat history** saved for personalized responses.
+
+### **3. Nearest Hospitals Page**
+- **Google Maps integration** displaying hospitals around the user.
+- **Filters** (Specialties: General, Dental, Pediatric, Emergency, etc.).
+- Click on a hospital to view **details, availability, services, and contact.**
+
+### **4. Hospital Booking Page**
+- List of **hospitals with available doctors.**
+- Users can **select a doctor, book an appointment, and make payments via M-Pesa.**
+- **User authentication (JWT-based login)** for secure appointment scheduling.
+
+### **5. Mental Health & Wellness Page**
+- AI-driven mental health support with **stress relief exercises & guided meditation.**
+- **Daily mental health tips & self-care routines.**
+- Interactive **breathing exercises** UI component.
+
+### **6. First-Aid & Emergency Tips Page**
+- Quick access to **critical emergency responses** (CPR, bleeding, fractures, etc.).
+- AI-assisted **step-by-step emergency guidance.**
+- **Search functionality** for first-aid topics.
+
+### **7. User Dashboard Page**
+- Users can **view appointment history, chat history, and saved hospitals.**
+- **Profile settings** (Name, Email, Preferred Doctors, Dark/Light mode toggle).
+
+### **8. Admin Dashboard (For Hospital Management)**
+- **Add & Manage hospitals, doctors, and appointments.**
+- View **real-time user bookings and M-Pesa transactions.**
+- Monitor chatbot analytics (most common user queries).
+
+---
+
+## **Core Features**
+✅ **Sleek UI with Tailwind CSS & modern UI components**  
+✅ **AI-powered chatbot with Gemini AI**  
+✅ **Google Maps API for nearest hospital search**  
+✅ **Hospital booking with appointment scheduling**  
+✅ **M-Pesa integration for payments**  
+✅ **Dark & Light mode**  
+✅ **Mobile-friendly & responsive**  
+
+---
+
+## **Deployment Plan**
+- **Frontend** → Deploy on Vercel  
+- **Backend** → Deploy on Render  
+- **Database** → Host on MongoDB Atlas  
+
+---
+
+## **Project Output**
+- Generate a **fully functional AI-powered health website** with a beautiful UI.  
+- Ensure clean and modular code with comments.  
+- Use **.env** files for API keys and database connections.  
+- Provide **setup instructions for local development & deployment.**  
+
+The final website **must be professional, modern, and intuitive, ensuring a seamless user experience.**  
