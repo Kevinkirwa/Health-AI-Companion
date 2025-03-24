@@ -76,6 +76,35 @@ const Footer = () => {
         </div>
         
         <div className="border-t border-gray-800 mt-8 pt-6">
+          {/* Mission Statement */}
+          <div className="mb-8 p-6 bg-gradient-to-r from-primary-900/30 to-gray-900/20 rounded-lg">
+            <div className="flex items-center mb-4">
+              <div className="bg-primary-600 p-2 rounded mr-3">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" className="text-white" viewBox="0 0 16 16">
+                  <path d="M8.211 2.047a.5.5 0 0 0-.422 0l-7.5 3.5a.5.5 0 0 0 .025.917l7.5 3a.5.5 0 0 0 .372 0L14 7.14V13a1 1 0 0 0-1 1v2h3v-2a1 1 0 0 0-1-1V6.739l.686-.275a.5.5 0 0 0 .025-.917l-7.5-3.5Z"/>
+                  <path d="M4.176 9.032a.5.5 0 0 0-.656.327l-.5 1.7a.5.5 0 0 0 .294.605l4.5 1.8a.5.5 0 0 0 .372 0l4.5-1.8a.5.5 0 0 0 .294-.605l-.5-1.7a.5.5 0 0 0-.656-.327L8 10.466 4.176 9.032Z"/>
+                </svg>
+              </div>
+              <h3 className="text-white font-bold text-xl">Our Mission</h3>
+            </div>
+            <p className="text-gray-300 mb-3 leading-relaxed">
+              AI Health Assistant is committed to transforming healthcare access across Africa, where medical 
+              resources are often scarce and unevenly distributed. We believe that everyone deserves access to 
+              quality healthcare information, regardless of geographic or economic barriers.
+            </p>
+            <div className="flex flex-col md:flex-row md:space-x-6 text-sm mt-4">
+              <div className="mb-3 md:mb-0">
+                <h4 className="text-primary-400 font-semibold mb-1">Vision</h4>
+                <p className="text-gray-400">A world where healthcare knowledge is accessible to all, empowering individuals to make informed health decisions.</p>
+              </div>
+              <div>
+                <h4 className="text-primary-400 font-semibold mb-1">Impact</h4>
+                <p className="text-gray-400">Bridging healthcare gaps in underserved regions through AI-powered health information, guidance, and resources.</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Founder Section */}
           <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
             <div className="md:w-2/3">
               <div className="flex items-center mb-3">
@@ -85,20 +114,23 @@ const Footer = () => {
                 <h4 className="text-white font-semibold text-lg">From the Founder</h4>
               </div>
               <p className="text-gray-400 text-sm md:pr-6">
-                "My goal with AI Health Assistant is to democratize healthcare knowledge and make it accessible to everyone, 
-                regardless of location or resources. Using AI, we're bridging gaps in health information access."
+                "Growing up in Africa, I witnessed firsthand the challenges of limited healthcare access. 
+                AI Health Assistant is born from my vision to leverage technology to overcome these barriers, 
+                providing reliable health information and support to those who need it most."
               </p>
               <p className="text-primary-400 font-medium text-sm mt-2">— Kirwa, Founder & CEO</p>
             </div>
             <div className="mt-4 md:mt-0 md:w-1/3 md:text-right">
               <Link href="/" className="inline-flex items-center bg-primary-600 hover:bg-primary-700 text-white py-2 px-4 rounded transition-colors">
-                <span>Learn our story</span>
+                <span>Our African Initiative</span>
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="ml-2" viewBox="0 0 16 16">
                   <path fillRule="evenodd" d="M4 8a.5.5 0 0 1 .5-.5h5.793L8.146 5.354a.5.5 0 1 1 .708-.708l3 3a.5.5 0 0 1 0 .708l-3 3a.5.5 0 0 1-.708-.708L10.293 8.5H4.5A.5.5 0 0 1 4 8"/>
                 </svg>
               </Link>
             </div>
           </div>
+
+          {/* Copyright */}
           <div className="text-center border-t border-gray-800 pt-4">
             <p className="text-sm">&copy; {currentYear} AI Health Assistant. All rights reserved.</p>
             <p className="mt-2 text-sm">Disclaimer: This application provides general health information and is not a substitute for professional medical advice.</p>
