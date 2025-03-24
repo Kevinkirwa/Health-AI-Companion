@@ -1,6 +1,9 @@
 import { Link } from "wouter";
+import { useLanguage, Text, LanguageSelector } from "@/components/ui/language-selector";
+import { Globe } from "lucide-react";
 
 const Footer = () => {
+  const { t } = useLanguage();
   const currentYear = new Date().getFullYear();
   
   return (
@@ -104,6 +107,49 @@ const Footer = () => {
             </div>
           </div>
 
+          {/* Language Support Section */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between p-6 bg-gradient-to-r from-gray-800 to-gray-900 rounded-lg mb-6">
+            <div className="md:w-2/3">
+              <div className="flex items-center mb-3">
+                <div className="bg-primary-600 rounded-full p-2 flex items-center justify-center mr-3">
+                  <Globe className="h-5 w-5 text-white" />
+                </div>
+                <h4 className="text-white font-semibold text-lg">{t('language_support')}</h4>
+              </div>
+              <p className="text-gray-300 text-sm md:pr-6">
+                {t('language_support_message')}
+              </p>
+              <div className="flex flex-wrap gap-2 mt-3">
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                  🇺🇸 English
+                </span>
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                  🇰🇪 Swahili
+                </span>
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                  🇫🇷 French
+                </span>
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                  🇪🇹 Amharic
+                </span>
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                  🇳🇬 Hausa
+                </span>
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                  🇪🇬 Arabic
+                </span>
+              </div>
+            </div>
+            <div className="mt-4 md:mt-0 md:w-1/3 md:text-right">
+              <div className="inline-block">
+                <h5 className="text-white text-sm mb-2">{t('change_language')}</h5>
+                <div className="inline-block">
+                  <LanguageSelector />
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Founder Section */}
           <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
             <div className="md:w-2/3">
@@ -111,18 +157,16 @@ const Footer = () => {
                 <div className="bg-primary-500 rounded-full h-10 w-10 flex items-center justify-center mr-3">
                   <span className="text-white font-bold">K</span>
                 </div>
-                <h4 className="text-white font-semibold text-lg">From the Founder</h4>
+                <h4 className="text-white font-semibold text-lg">{t('from_founder')}</h4>
               </div>
               <p className="text-gray-400 text-sm md:pr-6">
-                "Growing up in Africa, I witnessed firsthand the challenges of limited healthcare access. 
-                AI Health Assistant is born from my vision to leverage technology to overcome these barriers, 
-                providing reliable health information and support to those who need it most."
+                {t('founder_quote')}
               </p>
-              <p className="text-primary-400 font-medium text-sm mt-2">— Kirwa, Founder & CEO</p>
+              <p className="text-primary-400 font-medium text-sm mt-2">— Kirwa, {t('founder_title')}</p>
             </div>
             <div className="mt-4 md:mt-0 md:w-1/3 md:text-right">
               <Link href="/" className="inline-flex items-center bg-primary-600 hover:bg-primary-700 text-white py-2 px-4 rounded transition-colors">
-                <span>Our African Initiative</span>
+                <span>{t('african_initiative')}</span>
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="ml-2" viewBox="0 0 16 16">
                   <path fillRule="evenodd" d="M4 8a.5.5 0 0 1 .5-.5h5.793L8.146 5.354a.5.5 0 1 1 .708-.708l3 3a.5.5 0 0 1 0 .708l-3 3a.5.5 0 0 1-.708-.708L10.293 8.5H4.5A.5.5 0 0 1 4 8"/>
                 </svg>

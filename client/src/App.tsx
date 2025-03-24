@@ -14,6 +14,7 @@ import BookingPage from "@/pages/booking-page";
 import { ProtectedRoute } from "@/lib/protected-route";
 import Header from "@/components/layout/header";
 import Footer from "@/components/layout/footer";
+import { LanguageProvider } from "@/components/ui/language-selector";
 
 function Router() {
   return (

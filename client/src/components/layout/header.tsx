@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useTheme } from "@/hooks/use-theme";
-import { Sun, Moon, Menu } from "lucide-react";
+import { Sun, Moon, Menu, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
 import LoginModal from "@/components/ui/login-modal";
 import MobileMenu from "@/components/layout/mobile-menu";
+import { LanguageSelector, useLanguage, Text } from "@/components/ui/language-selector";
 
 const Header = () => {
   const [location] = useLocation();
@@ -14,12 +15,14 @@ const Header = () => {
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  const { t } = useLanguage();
+  
   const navLinks = [
-    { href: "/", label: "Home" },
-    { href: "/chatbot", label: "AI Chatbot" },
-    { href: "/hospitals", label: "Find Hospitals" },
-    { href: "/mental-health", label: "Mental Health" },
-    { href: "/first-aid", label: "First Aid" },
+    { href: "/", label: t('home') },
+    { href: "/chatbot", label: t('chatbot') },
+    { href: "/hospitals", label: t('hospitals') },
+    { href: "/mental-health", label: t('mental_health') },
+    { href: "/first-aid", label: t('first_aid') },
   ];
 
   const isActive = (path: string) => {
@@ -51,6 +54,10 @@ const Header = () => {
         </nav>
         
         <div className="flex items-center space-x-4">
+          <div className="hidden md:block">
+            <LanguageSelector />
+          </div>
+          
           <Button
             variant="ghost"
             size="icon"
@@ -72,7 +79,7 @@ const Header = () => {
                 asChild
                 className="hidden md:inline-flex"
               >
-                <Link href="/dashboard">Dashboard</Link>
+                <Link href="/dashboard">{t('dashboard')}</Link>
               </Button>
               <Button
                 variant="default"
@@ -80,7 +87,7 @@ const Header = () => {
                 onClick={() => logoutMutation.mutate()}
                 className="hidden md:inline-flex"
               >
-                Logout
+                {t('logout')}
               </Button>
             </div>
           ) : (
@@ -90,7 +97,7 @@ const Header = () => {
               onClick={() => setShowLoginModal(true)}
               className="hidden md:inline-flex"
             >
-              Login
+              {t('login')}
             </Button>
           )}
 
