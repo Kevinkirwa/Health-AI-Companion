@@ -6,6 +6,9 @@ import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { storage } from "./storage";
 import { User as SelectUser } from "@shared/schema";
+import createMemoryStore from "memorystore";
+
+const MemoryStore = createMemoryStore(session);
 
 declare global {
   namespace Express {
@@ -35,7 +38,7 @@ export function setupAuth(app: Express) {
     saveUninitialized: false,
     store: storage.sessionStore,
     cookie: {
-      maxAge: 24 * 60 * 60 * 1000 // 24 hours
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
     }
   };
 
@@ -46,28 +49,41 @@ export function setupAuth(app: Express) {
 
   passport.use(
     new LocalStrategy(async (username, password, done) => {
-      const user = await storage.getUserByUsername(username);
-      if (!user || !(await comparePasswords(password, user.password))) {
-        return done(null, false);
-      } else {
-        return done(null, user);
+      try {
+        const user = await storage.getUserByUsername(username);
+        if (!user || !(await comparePasswords(password, user.password))) {
+          return done(null, false);
+        } else {
+          return done(null, user);
+        }
+      } catch (error) {
+        return done(error);
       }
     }),
   );
 
   passport.serializeUser((user, done) => done(null, user.id));
   passport.deserializeUser(async (id: number, done) => {
-    const user = await storage.getUser(id);
-    done(null, user);
+    try {
+      const user = await storage.getUser(id);
+      done(null, user);
+    } catch (error) {
+      done(error);
+    }
   });
 
   app.post("/api/register", async (req, res, next) => {
-    const existingUser = await storage.getUserByUsername(req.body.username);
-    if (existingUser) {
-      return res.status(400).send("Username already exists");
-    }
-
     try {
+      const existingUser = await storage.getUserByUsername(req.body.username);
+      if (existingUser) {
+        return res.status(400).send("Username already exists");
+      }
+
+      const existingEmail = await storage.getUserByEmail(req.body.email);
+      if (existingEmail) {
+        return res.status(400).send("Email already in use");
+      }
+
       const user = await storage.createUser({
         ...req.body,
         password: await hashPassword(req.body.password),
@@ -78,13 +94,20 @@ export function setupAuth(app: Express) {
         res.status(201).json(user);
       });
     } catch (error) {
-      console.error("Registration error:", error);
-      res.status(500).send("Registration failed");
+      next(error);
     }
   });
 
-  app.post("/api/login", passport.authenticate("local"), (req, res) => {
-    res.status(200).json(req.user);
+  app.post("/api/login", (req, res, next) => {
+    passport.authenticate("local", (err, user, info) => {
+      if (err) return next(err);
+      if (!user) return res.status(401).send("Invalid username or password");
+      
+      req.login(user, (err) => {
+        if (err) return next(err);
+        return res.status(200).json(user);
+      });
+    })(req, res, next);
   });
 
   app.post("/api/logout", (req, res, next) => {
@@ -97,26 +120,5 @@ export function setupAuth(app: Express) {
   app.get("/api/user", (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
     res.json(req.user);
-  });
-
-  // Update user preferences
-  app.patch("/api/user/preferences", async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
-    
-    try {
-      const userId = req.user!.id;
-      const { prefersDarkMode } = req.body;
-      
-      const updatedUser = await storage.updateUser(userId, { prefersDarkMode });
-      
-      if (!updatedUser) {
-        return res.status(404).json({ error: "User not found" });
-      }
-      
-      res.json(updatedUser);
-    } catch (error) {
-      console.error("User preferences update error:", error);
-      res.status(500).json({ error: "Failed to update user preferences" });
-    }
   });
 }

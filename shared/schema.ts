@@ -1,58 +1,64 @@
-import { pgTable, text, serial, integer, boolean, jsonb, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, json } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-// User schema
+// Users table
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
+  email: text("email").notNull().unique(),
   password: text("password").notNull(),
   name: text("name"),
-  email: text("email"),
-  role: text("role").default("user"),
-  prefersDarkMode: boolean("prefers_dark_mode").default(false),
-  createdAt: timestamp("created_at").defaultNow()
+  role: text("role").default("user").notNull(),
+  preferences: json("preferences").$type<{ darkMode: boolean; notifications: boolean }>(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
+  email: true,
   password: true,
   name: true,
-  email: true
 });
 
-// Hospital schema
+// Hospitals table
 export const hospitals = pgTable("hospitals", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   address: text("address").notNull(),
+  latitude: text("latitude").notNull(),
+  longitude: text("longitude").notNull(),
+  phone: text("phone"),
+  email: text("email"),
+  website: text("website"),
+  openHours: text("open_hours"),
+  specialties: json("specialties").$type<string[]>(),
   rating: integer("rating"),
-  specialties: text("specialties").array(),
+  imageUrl: text("image_url"),
   distance: text("distance"),
-  image: text("image"),
-  latitude: text("latitude"),
-  longitude: text("longitude")
 });
 
 export const insertHospitalSchema = createInsertSchema(hospitals).omit({
   id: true
 });
 
-// Doctor schema
+// Doctors table
 export const doctors = pgTable("doctors", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
-  specialty: text("specialty").notNull(),
   hospitalId: integer("hospital_id").notNull(),
-  availability: text("availability"),
-  image: text("image")
+  specialty: text("specialty").notNull(),
+  availability: json("availability").$type<{ day: string; slots: string[] }[]>(),
+  imageUrl: text("image_url"),
+  bio: text("bio"),
+  rating: integer("rating"),
 });
 
 export const insertDoctorSchema = createInsertSchema(doctors).omit({
   id: true
 });
 
-// Appointment schema
+// Appointments table
 export const appointments = pgTable("appointments", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull(),
@@ -60,8 +66,9 @@ export const appointments = pgTable("appointments", {
   hospitalId: integer("hospital_id").notNull(),
   date: text("date").notNull(),
   time: text("time").notNull(),
-  status: text("status").default("pending"),
-  createdAt: timestamp("created_at").defaultNow()
+  status: text("status").default("pending").notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 export const insertAppointmentSchema = createInsertSchema(appointments).omit({
@@ -69,38 +76,66 @@ export const insertAppointmentSchema = createInsertSchema(appointments).omit({
   createdAt: true
 });
 
-// Chat history schema
-export const chatHistory = pgTable("chat_history", {
+// Chat messages table
+export const chatMessages = pgTable("chat_messages", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull(),
-  messages: jsonb("messages").notNull(),
-  createdAt: timestamp("created_at").defaultNow()
+  role: text("role").notNull(), // user or assistant
+  content: text("content").notNull(),
+  timestamp: timestamp("timestamp").defaultNow().notNull(),
 });
 
-export const insertChatHistorySchema = createInsertSchema(chatHistory).omit({
+export const insertChatMessageSchema = createInsertSchema(chatMessages).omit({
   id: true,
-  createdAt: true
+  timestamp: true
 });
 
-// Define types
-export type InsertUser = z.infer<typeof insertUserSchema>;
+// First aid tips table
+export const firstAidTips = pgTable("first_aid_tips", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  category: text("category").notNull(),
+  content: text("content").notNull(),
+  steps: json("steps").$type<{ step: number; title: string; description: string }[]>(),
+  imageUrl: text("image_url"),
+});
+
+export const insertFirstAidTipSchema = createInsertSchema(firstAidTips).omit({
+  id: true
+});
+
+// Mental health resources table
+export const mentalHealthResources = pgTable("mental_health_resources", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  category: text("category").notNull(),
+  content: text("content").notNull(),
+  steps: json("steps").$type<{ step: number; title: string; description: string }[]>(),
+  imageUrl: text("image_url"),
+});
+
+export const insertMentalHealthResourceSchema = createInsertSchema(mentalHealthResources).omit({
+  id: true
+});
+
+// Type exports
 export type User = typeof users.$inferSelect;
+export type InsertUser = z.infer<typeof insertUserSchema>;
 
-export type InsertHospital = z.infer<typeof insertHospitalSchema>;
 export type Hospital = typeof hospitals.$inferSelect;
+export type InsertHospital = z.infer<typeof insertHospitalSchema>;
 
-export type InsertDoctor = z.infer<typeof insertDoctorSchema>;
 export type Doctor = typeof doctors.$inferSelect;
+export type InsertDoctor = z.infer<typeof insertDoctorSchema>;
 
-export type InsertAppointment = z.infer<typeof insertAppointmentSchema>;
 export type Appointment = typeof appointments.$inferSelect;
+export type InsertAppointment = z.infer<typeof insertAppointmentSchema>;
 
-export type InsertChatHistory = z.infer<typeof insertChatHistorySchema>;
-export type ChatHistory = typeof chatHistory.$inferSelect;
+export type ChatMessage = typeof chatMessages.$inferSelect;
+export type InsertChatMessage = z.infer<typeof insertChatMessageSchema>;
 
-// Message type for chatbot
-export type Message = {
-  sender: 'user' | 'ai';
-  text: string;
-  timestamp: string;
-};
+export type FirstAidTip = typeof firstAidTips.$inferSelect;
+export type InsertFirstAidTip = z.infer<typeof insertFirstAidTipSchema>;
+
+export type MentalHealthResource = typeof mentalHealthResources.$inferSelect;
+export type InsertMentalHealthResource = z.infer<typeof insertMentalHealthResourceSchema>;
