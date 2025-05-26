@@ -19,6 +19,7 @@ import { LanguageProvider } from "@/components/ui/language-selector";
 import DoctorRegisterPage from '@/pages/doctor-register-page';
 import AuthPage from '@/pages/auth-page';
 import DoctorDashboardPage from '@/pages/doctor-dashboard-page';
+import DoctorScheduleSelection from '@/pages/doctor/schedule-selection';
 import AboutPage from "@/pages/about-page";
 import { Toaster } from "@/components/ui/toaster";
 
@@ -45,6 +46,7 @@ function Router() {
           <Route path="/doctor/register" component={DoctorRegisterPage} />
           <Route path="/auth" component={AuthPage} />
           <ProtectedRoute path="/doctor/dashboard" component={DoctorDashboardPage} requiredRole="doctor" />
+          <ProtectedRoute path="/doctor/schedule-selection/:hospitalId?" component={DoctorScheduleSelection} requiredRole="doctor" />
           <Route component={NotFound} />
         </Switch>
       </main>

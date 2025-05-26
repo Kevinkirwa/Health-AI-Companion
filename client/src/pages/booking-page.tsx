@@ -191,20 +191,49 @@ const BookingPage = () => {
   };
 
   // Get available dates for the next 14 days
+  const { data: doctorAvailableDates, isLoading: isLoadingAvailableDates } = useQuery({
+    queryKey: [`/api/doctor-dashboard/available-dates`, selectedDoctor],
+    queryFn: async () => {
+      if (!selectedDoctor) return { availableDates: [] };
+      
+      try {
+        // First try to get doctor's specific available dates
+        const res = await apiRequest<{ success: boolean; availableDates: any[] }>(
+          `/api/doctor-dashboard/available-dates?doctorId=${selectedDoctor}`,
+          { method: "GET" }
+        );
+        console.log('Doctor available dates response:', res);
+        return res;
+      } catch (error) {
+        console.error('Error fetching doctor available dates:', error);
+        return { availableDates: [] };
+      }
+    },
+    enabled: !!selectedDoctor,
+  });
+
+  // Get available dates based on doctor's specific selections or fall back to the next 14 days
   const getAvailableDates = (): string[] => {
     const dates: string[] = [];
-    const today = new Date();
     
-    // Always show dates for the next 14 days, regardless of doctor availability
-    // This ensures the UI always has dates to display
+    // If the doctor has specific available dates, use those
+    if (doctorAvailableDates?.availableDates && doctorAvailableDates.availableDates.length > 0) {
+      console.log('Using doctor\'s specific available dates:', doctorAvailableDates.availableDates);
+      return doctorAvailableDates.availableDates.map(dateObj => {
+        const date = new Date(dateObj.date);
+        return date.toISOString().split('T')[0];
+      });
+    }
+    
+    // Otherwise fall back to the next 14 days
+    console.log('No specific dates found, using next 14 days as fallback');
+    const today = new Date();
     for (let i = 0; i < 14; i++) {
       const date = new Date();
       date.setDate(today.getDate() + i);
       const formattedDate = date.toISOString().split('T')[0];
       dates.push(formattedDate);
     }
-    
-    console.log(`Generated ${dates.length} available dates`);
     return dates;
   };
 
@@ -299,9 +328,53 @@ const BookingPage = () => {
 
   // Helper function to check if a doctor has available time slots for a specific date
   const getDoctorTimeSlots = (doctorId: string | number, date: string): TimeSlot[] => {
-    if (!doctorId || !date || !doctorSchedules) return [];
+    if (!doctorId || !date) return [];
     
     console.log(`Getting time slots for doctor ${doctorId} on ${date}`);
+    
+    // Check if we have specific available dates for this doctor
+    if (doctorAvailableDates?.availableDates && doctorAvailableDates.availableDates.length > 0) {
+      // Find the specific date in the doctor's available dates
+      const specificDate = doctorAvailableDates.availableDates.find(dateObj => {
+        const availableDate = new Date(dateObj.date).toISOString().split('T')[0];
+        return availableDate === date;
+      });
+      
+      if (specificDate) {
+        console.log('Found specific available date with time range:', specificDate);
+        
+        // Parse the specific time range for this date
+        const timeRange = specificDate.timeRange || { startTime: "09:00", endTime: "17:00" };
+        const [startHour, startMin] = timeRange.startTime.split(':').map(Number);
+        const [endHour, endMin] = timeRange.endTime.split(':').map(Number);
+        
+        // Convert to minutes for easier calculation
+        const startTimeMinutes = startHour * 60 + startMin;
+        const endTimeMinutes = endHour * 60 + endMin;
+        
+        // Generate 30-minute slots between start and end time
+        const slots: TimeSlot[] = [];
+        for (let time = startTimeMinutes; time < endTimeMinutes; time += 30) {
+          const hour = Math.floor(time / 60);
+          const min = time % 60;
+          const timeString = `${hour.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`;
+          
+          slots.push({
+            time: timeString,
+            available: true
+          });
+        }
+        
+        console.log(`Generated ${slots.length} time slots for doctor ${doctorId} on specific date ${date}`);
+        return slots;
+      }
+      
+      console.log(`Doctor has specific available dates but not for ${date}`);
+      return [];
+    }
+    
+    // Fall back to weekly schedule if no specific dates are available
+    if (!doctorSchedules) return [];
     
     // Find the doctor's schedule
     const doctorSchedule = doctorSchedules.find(schedule => schedule.doctor._id === doctorId);
@@ -312,7 +385,7 @@ const BookingPage = () => {
     
     // Get the day of week for the selected date (0 = Sunday, 1 = Monday, etc.)
     const selectedDateObj = new Date(date);
-    const dayOfWeek = selectedDateObj.getDay() || 7; // Convert Sunday from 0 to 7 for consistency
+    const dayOfWeek = selectedDateObj.getDay(); // 0 = Sunday, 1 = Monday, etc.
     
     // Find the schedule for this day of week
     const daySchedule = doctorSchedule.schedules.find(schedule => schedule.dayOfWeek === dayOfWeek);
@@ -321,7 +394,7 @@ const BookingPage = () => {
       return [];
     }
     
-    console.log('Found schedule for selected day:', daySchedule);
+    console.log('Found weekly schedule for day:', daySchedule);
     
     // Parse start and end times
     const [startHour, startMin] = daySchedule.startTime.split(':').map(Number);
@@ -344,7 +417,7 @@ const BookingPage = () => {
       });
     }
     
-    console.log(`Generated ${slots.length} time slots for doctor ${doctorId} on ${date}`);
+    console.log(`Generated ${slots.length} time slots for doctor ${doctorId} on ${date} from weekly schedule`);
     return slots;
   };
 

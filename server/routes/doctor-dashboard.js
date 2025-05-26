@@ -240,6 +240,54 @@ function initializeDoctorDashboardRoutes(db) {
     }
   });
 
+  // Get doctor's associated hospitals
+  router.get('/hospitals', authenticateToken, isDoctor, ensureDoctorProfile, async (req, res) => {
+    try {
+      console.log('🔍 Getting hospitals for doctor:', req.user.id);
+      const doctor = await db.getDoctorByUserId(req.user.id);
+      
+      if (!doctor) {
+        console.error('❌ Doctor not found with user ID:', req.user.id);
+        return res.status(404).json({ success: false, message: 'Doctor not found' });
+      }
+      
+      // Check if doctor has hospitals associated
+      if (!doctor.hospitals || doctor.hospitals.length === 0) {
+        // If doctor doesn't have hospitals, try to find hospital associations
+        console.log('⚠️ No hospitals directly associated with doctor, querying hospitals collection');
+        const hospitals = await db.getHospitalsForDoctor(doctor._id);
+        
+        res.json({
+          success: true,
+          hospitals: hospitals.map(h => ({
+            id: h._id.toString(),
+            name: h.name
+          }))
+        });
+      } else {
+        // Doctor has hospitals associated directly
+        console.log('✅ Found hospitals directly associated with doctor:', doctor.hospitals);
+        const hospitalIds = doctor.hospitals.map(h => h.toString());
+        const hospitals = await db.getHospitalsByIds(hospitalIds);
+        
+        res.json({
+          success: true,
+          hospitals: hospitals.map(h => ({
+            id: h._id.toString(),
+            name: h.name
+          }))
+        });
+      }
+    } catch (error) {
+      console.error('❌ Error getting doctor hospitals:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Error getting doctor hospitals',
+        error: error.message
+      });
+    }
+  });
+
   return router;
 }
 

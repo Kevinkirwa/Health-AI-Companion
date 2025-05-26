@@ -171,6 +171,45 @@ class MongoStorage {
       return [];
     }
   }
+  
+  async getHospitalsByIds(hospitalIds) {
+    await this.ensureConnection();
+    try {
+      console.log('🔍 Finding hospitals with IDs:', hospitalIds);
+      const hospitals = await this.Hospital.find({
+        _id: { $in: hospitalIds }
+      });
+      console.log(`✅ Found ${hospitals.length} hospitals`);
+      return hospitals.map(hospital => hospital.toObject());
+    } catch (error) {
+      console.error('❌ Error getting hospitals by IDs:', error);
+      return [];
+    }
+  }
+
+  async getHospitalsForDoctor(doctorId) {
+    await this.ensureConnection();
+    try {
+      console.log('🔍 Finding hospitals for doctor ID:', doctorId);
+      // Look for hospitals where the doctor is listed
+      const hospitals = await this.Hospital.find({
+        doctors: doctorId
+      });
+      
+      if (hospitals.length === 0) {
+        console.log('⚠️ No hospitals found for doctor, checking for default hospital');
+        // If no hospitals found, return at least the first hospital as a fallback
+        const defaultHospital = await this.Hospital.findOne();
+        return defaultHospital ? [defaultHospital.toObject()] : [];
+      }
+      
+      console.log(`✅ Found ${hospitals.length} hospitals for doctor`);
+      return hospitals.map(hospital => hospital.toObject());
+    } catch (error) {
+      console.error('❌ Error getting hospitals for doctor:', error);
+      return [];
+    }
+  }
 
   async getHospitalsByFilters(filters) {
     await this.ensureConnection();

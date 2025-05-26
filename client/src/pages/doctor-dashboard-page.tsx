@@ -532,7 +532,16 @@ const DoctorDashboardPage = () => {
                           onClick={() => setIsScheduleFormOpen(true)}
                           className="flex items-center gap-2"
                         >
-                          <Plus className="h-4 w-4" /> Create Schedule
+                          <Plus className="h-4 w-4" /> Weekly Schedule
+                        </Button>
+                        <Button 
+                          variant="outline"
+                          className="flex items-center gap-2"
+                          asChild
+                        >
+                          <a href="/doctor/schedule-selection">
+                            <Calendar className="h-4 w-4" /> Multiple Dates Selection
+                          </a>
                         </Button>
                         <Select
                           value={selectedHospital || ""}

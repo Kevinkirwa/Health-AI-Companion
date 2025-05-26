@@ -76,7 +76,6 @@ function setupDoctorDashboardRoutes(app, storage) {
   router.put('/schedule', isDoctor, async (req, res) => {
     try {
       // Direct approach - using the doctor's ID directly from request
-      // First, try to find doctor by the known ID since we're having issues
       console.log('🔍 Schedule update request received:');
       console.log('🙲‍⚕️ User ID from token:', req.user.id);
       console.log('📅 Schedule data:', JSON.stringify(req.body, null, 2));
@@ -104,16 +103,23 @@ function setupDoctorDashboardRoutes(app, storage) {
       }
       console.log('✅ Doctor found:', doctor._id);
       
+      // Extract weekly schedule and specific dates from the request
+      const { weeklySchedule, specificDates } = req.body;
+      
       // Add doctor's MongoDB ID to schedule data
       const scheduleData = {
-        ...req.body,
-        doctorId: doctor._id
+        doctorId: doctor._id,
+        hospitalId: req.body.hospitalId,
+        weeklySchedule: weeklySchedule || {},
+        specificDates: specificDates || []
       };
       
       console.log('📝 Enhanced schedule data with doctor._id:', doctor._id);
+      console.log('📅 Specific dates provided:', scheduleData.specificDates.length);
       
+      // Update the doctor's schedule
       const schedule = await storage.updateDoctorSchedule(doctor._id, scheduleData);
-      console.log('✅ Schedule saved successfully:', schedule);
+      console.log('✅ Schedule saved successfully');
       
       res.json({
         message: 'Schedule updated successfully',
@@ -122,6 +128,43 @@ function setupDoctorDashboardRoutes(app, storage) {
     } catch (error) {
       console.error('❌ Update schedule error:', error);
       res.status(500).json({ message: 'Error updating schedule' });
+    }
+  });
+
+  // Get doctor's available dates
+  router.get('/available-dates', authenticateToken, async (req, res) => {
+    try {
+      const doctor = await Doctor.findOne({ userId: req.user.id });
+      if (!doctor) {
+        return res.status(404).json({ message: 'Doctor not found' });
+      }
+
+      // Get the doctor's schedule with specific dates
+      const schedule = await storage.getDoctorSchedule(doctor._id);
+      
+      // Extract available dates from the schedule
+      let availableDates = [];
+      
+      if (schedule && schedule.specificDates && schedule.specificDates.length > 0) {
+        // Filter only available dates
+        availableDates = schedule.specificDates
+          .filter(date => date.isAvailable)
+          .map(date => ({
+            date: date.date,
+            timeRange: date.timeRange || { startTime: "09:00", endTime: "17:00" }
+          }));
+      }
+      
+      res.json({
+        success: true,
+        availableDates
+      });
+    } catch (error) {
+      console.error('Error fetching available dates:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to fetch available dates'
+      });
     }
   });
 
