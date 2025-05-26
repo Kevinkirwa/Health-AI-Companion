@@ -13,7 +13,7 @@
     "paths": {
       "@/*": ["src/*"]
     },
-    "allowJs": true,
+    "allowJs": false,
     "resolveJsonModule": true,
     "noEmit": false,
     "isolatedModules": true
@@ -22,6 +22,15 @@
     "esm": true,
     "experimentalSpecifierResolution": "node"
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "config", "storage", "models", "routes", "utils", "workers"]
+  "include": ["src/**/*.ts"],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "config",
+    "storage",
+    "models",
+    "routes",
+    "utils",
+    "workers"
+  ]
 } 

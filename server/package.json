@@ -6,7 +6,7 @@
   "type": "commonjs",
   "scripts": {
     "start": "node dist/index.js",
-    "build": "rm -rf dist && mkdir -p dist && tsc && cp -r config storage models routes utils workers dist/",
+    "build": "rm -rf dist && mkdir -p dist && tsc && cp -r config dist/ && cp -r storage dist/ && cp -r models dist/ && cp -r routes dist/ && cp -r utils dist/ && cp -r workers dist/",
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "test": "jest"
   },

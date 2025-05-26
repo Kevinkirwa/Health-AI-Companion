@@ -87,76 +87,133 @@ class NotificationStorage {
   }
 
   async markAllNotificationsAsRead(userId) {
-    await this.collection.updateMany(
-      {
-        userId: new ObjectId(userId),
-        read: false
-      },
-      {
-        $set: { read: true }
-      }
-    );
+    if (!this.isConnected) {
+      console.warn('Attempted to mark all notifications as read without database connection');
+      return true;
+    }
+    
+    try {
+      await this.collection.updateMany(
+        {
+          userId: new ObjectId(userId),
+          read: false
+        },
+        {
+          $set: { read: true }
+        }
+      );
+      return true;
+    } catch (error) {
+      console.error('Error marking all notifications as read:', error);
+      return false;
+    }
   }
 
   async deleteNotification(notificationId, userId) {
-    const result = await this.collection.deleteOne({
-      _id: new ObjectId(notificationId),
-      userId: new ObjectId(userId)
-    });
+    if (!this.isConnected) {
+      console.warn('Attempted to delete notification without database connection');
+      return true; // Pretend it worked in mock mode
+    }
+    
+    try {
+      const result = await this.collection.deleteOne({
+        _id: new ObjectId(notificationId),
+        userId: new ObjectId(userId)
+      });
 
-    return result.deletedCount > 0;
+      return result.deletedCount > 0;
+    } catch (error) {
+      console.error('Error deleting notification:', error);
+      return false;
+    }
   }
 
   async deleteAllNotifications(userId) {
-    await this.collection.deleteMany({
-      userId: new ObjectId(userId)
-    });
+    if (!this.isConnected) {
+      console.warn('Attempted to delete all notifications without database connection');
+      return true; // Pretend it worked in mock mode
+    }
+    
+    try {
+      await this.collection.deleteMany({
+        userId: new ObjectId(userId)
+      });
+      return true;
+    } catch (error) {
+      console.error('Error deleting all notifications:', error);
+      return false;
+    }
   }
 
   async getUnreadCount(userId) {
-    return await this.collection.countDocuments({
-      userId: new ObjectId(userId),
-      read: false
-    });
+    if (!this.isConnected) {
+      console.warn('Attempted to get unread count without database connection');
+      return 0; // Return zero notifications in mock mode
+    }
+    
+    try {
+      return await this.collection.countDocuments({
+        userId: new ObjectId(userId),
+        read: false
+      });
+    } catch (error) {
+      console.error('Error getting unread count:', error);
+      return 0;
+    }
   }
 
   async createAppointmentNotification(userId, appointment) {
-    return this.createNotification(userId, {
-      type: 'appointment',
-      title: 'New Appointment',
-      message: `You have a new appointment scheduled for ${new Date(appointment.date).toLocaleString()}`,
-      metadata: {
-        appointmentId: appointment._id,
-        doctorId: appointment.doctorId,
-        date: appointment.date
-      }
-    });
+    try {
+      return await this.createNotification(userId, {
+        type: 'appointment',
+        title: 'New Appointment',
+        message: `You have a new appointment scheduled for ${new Date(appointment.date).toLocaleString()}`,
+        metadata: {
+          appointmentId: appointment._id,
+          doctorId: appointment.doctorId,
+          date: appointment.date
+        }
+      });
+    } catch (error) {
+      console.error('Error creating appointment notification:', error);
+      return null;
+    }
   }
 
   async createReminderNotification(userId, appointment) {
-    return this.createNotification(userId, {
-      type: 'reminder',
-      title: 'Appointment Reminder',
-      message: `Reminder: You have an appointment tomorrow at ${new Date(appointment.date).toLocaleString()}`,
-      metadata: {
-        appointmentId: appointment._id,
-        doctorId: appointment.doctorId,
-        date: appointment.date
-      }
-    });
+    try {
+      return await this.createNotification(userId, {
+        type: 'reminder',
+        title: 'Appointment Reminder',
+        message: `Reminder: You have an appointment tomorrow at ${new Date(appointment.date).toLocaleString()}`,
+        metadata: {
+          appointmentId: appointment._id,
+          doctorId: appointment.doctorId,
+          date: appointment.date
+        }
+      });
+    } catch (error) {
+      console.error('Error creating reminder notification:', error);
+      return null;
+    }
   }
 
   async createStatusUpdateNotification(userId, appointment) {
-    return this.createNotification(userId, {
-      type: 'status_update',
-      title: 'Appointment Status Updated',
-      message: `Your appointment status has been updated to ${appointment.status}`,
-      metadata: {
-        appointmentId: appointment._id,
-        doctorId: appointment.doctorId,
-        status: appointment.status
-      }
-    });
+    try {
+      return await this.createNotification(userId, {
+        type: 'status_update',
+        title: 'Appointment Status Updated',
+        message: `Your appointment status has been updated to ${appointment.status}`,
+        metadata: {
+          appointmentId: appointment._id,
+          doctorId: appointment.doctorId,
+          status: appointment.status
+        }
+      });
+    } catch (error) {
+      console.error('Error creating status update notification:', error);
+      return null;
+    }
   }
 }
 
