@@ -1,113 +1,105 @@
-# Health AI Companion - Emergency Hospital Finder
+# Health AI Companion
 
-A web application that helps users find the nearest emergency hospitals based on their location and emergency type.
+A comprehensive healthcare platform that provides AI-powered health guidance, hospital finder, mental health support, and appointment booking services.
 
 ## Features
 
-- Find nearest emergency hospitals by county
-- Filter hospitals by emergency type (cardiac, trauma, pediatric, obstetric, general)
-- Get directions to selected hospitals
-- View hospital services and contact information
-- Real-time location-based hospital recommendations
+- 🤖 AI Health Chatbot for instant medical guidance
+- 🏥 Hospital Finder with real-time availability
+- 🧠 Mental Health Support and Resources
+- 📅 Doctor Appointment Booking System
+- 📱 Multi-platform Notifications (SMS, Email, WhatsApp)
+- 🌍 Multi-language Support
+- 🚑 Emergency Services Integration
+
+## Tech Stack
+
+- **Frontend**: React, TypeScript, Tailwind CSS
+- **Backend**: Node.js, Express
+- **Database**: MongoDB
+- **AI Integration**: Google Gemini
+- **Authentication**: JWT
+- **Notifications**: Twilio, WhatsApp Business API
+- **Maps**: Google Maps API
 
 ## Prerequisites
 
 - Node.js (v16 or higher)
-- npm (v7 or higher)
-- MongoDB (for the database)
+- MongoDB
+- npm or yarn
+- Git
 
-{
-  "email": "admin@example.com",
-  "username": "admin",
-  "password": "Access123",
-  "name": "Admin User"
-}
-
-## Setup
+## Setup Instructions
 
 1. Clone the repository:
-```bash
-git clone <repository-url>
-cd health-ai-companion
-```
+   ```bash
+   git clone https://github.com/Kevinkirwa/Health-AI-Companion.git
+   cd Health-AI-Companion
+   ```
 
 2. Install dependencies:
-```bash
-# Install root dependencies
-npm install
+   ```bash
+   # Install server dependencies
+   cd server
+   npm install
 
-# Install server dependencies
-cd server
-npm install
+   # Install client dependencies
+   cd ../client
+   npm install
+   ```
 
-# Install client dependencies
-cd ../client
-npm install
-```
+3. Set up environment variables:
+   ```bash
+   # In the root directory
+   cp .env.example .env
+   # In the server directory
+   cd server
+   cp .env.example .env
+   ```
+   Edit the `.env` files with your configuration values.
 
-3. Create a `.env` file in the server directory:
-```env
-PORT=3000
-MONGODB_URI=mongodb://localhost:27017/health-ai-companion
-```
+4. Start the development servers:
+   ```bash
+   # Start the backend server (from the server directory)
+   npm run dev
 
-4. Create a `.env` file in the client directory:
-```env
-VITE_API_URL=http://localhost:3000
-```
-
-## Running the Application
-
-1. Start the development servers:
-```bash
-# From the root directory
-npm run dev
-```
-
-This will start both the server and client in development mode.
-
-- Server will run on: http://localhost:3000
-- Client will run on: http://localhost:5173
-
-## Building for Production
-
-1. Build both client and server:
-```bash
-npm run build
-```
-
-2. Start the production servers:
-```bash
-npm start
-```
+   # Start the frontend development server (from the client directory)
+   npm run dev
+   ```
 
 ## Project Structure
 
 ```
-health-ai-companion/
+Health-AI-Companion/
 ├── client/                 # Frontend React application
 │   ├── src/
-│   │   ├── components/    # React components
+│   │   ├── components/    # Reusable UI components
 │   │   ├── pages/        # Page components
-│   │   └── utils/        # Utility functions
-│   └── public/           # Static files
-├── server/                # Backend Express application
-│   ├── src/
-│   │   ├── api/         # API routes
-│   │   ├── models/      # Database models
-│   │   └── utils/       # Utility functions
-│   └── data/            # Static data
-└── package.json          # Root package.json
+│   │   ├── hooks/        # Custom React hooks
+│   │   └── lib/          # Utility functions and API clients
+│   └── public/           # Static assets
+├── server/                # Backend Node.js application
+│   ├── api/              # API routes
+│   ├── models/           # Database models
+│   ├── services/         # Business logic
+│   └── utils/            # Utility functions
+└── scripts/              # Utility scripts
 ```
 
 ## Contributing
 
 1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details. 
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Contact
+
+Kirwa - [@Kevinkirwa](https://github.com/Kevinkirwa)
+
+Project Link: [https://github.com/Kevinkirwa/Health-AI-Companion](https://github.com/Kevinkirwa/Health-AI-Companion) 
