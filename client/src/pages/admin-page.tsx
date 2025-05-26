@@ -56,6 +56,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Check, PencilIcon, Trash } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 const AdminPage = () => {
   const { user } = useAuth();
@@ -69,41 +70,132 @@ const AdminPage = () => {
     return <Redirect to="/" />;
   }
 
-  // Fetch data for admin dashboard
-  const { data: hospitals } = useQuery<Hospital[]>({
-    queryKey: ["/api/hospitals/all"],
+  // Get all hospitals
+  const { data: hospitals, isLoading: isLoadingHospitals } = useQuery({
+    queryKey: ["/hospitals/all"],
     queryFn: async () => {
-      const res = await fetch("/api/hospitals/all");
-      if (!res.ok) throw new Error("Failed to fetch hospitals");
-      return res.json();
-    }
+      try {
+        const res = await apiRequest<any>("/hospitals/all");
+        console.log('Hospitals response:', res);
+        
+        // Debug the response structure
+        if (res && typeof res === 'object') {
+          console.log('Hospital response keys:', Object.keys(res));
+        }
+        
+        if (Array.isArray(res)) {
+          return res;
+        } else if (res && res.hospitals && Array.isArray(res.hospitals)) {
+          return res.hospitals;
+        } else if (res && res.success && res.data && Array.isArray(res.data)) {
+          return res.data;
+        }
+        
+        return [];
+      } catch (error) {
+        console.error('Error fetching hospitals:', error);
+        return [];
+      }
+    },
   });
 
-  const { data: doctors } = useQuery<Doctor[]>({
-    queryKey: ["/api/doctors"],
+  // Get all doctors
+  const { data: doctors, isLoading: isLoadingDoctors } = useQuery({
+    queryKey: ["/doctors"],
     queryFn: async () => {
-      const res = await fetch("/api/doctors");
-      if (!res.ok) throw new Error("Failed to fetch doctors");
-      return res.json();
-    }
+      console.log('Fetching doctors...');
+      const token = localStorage.getItem('token');
+      console.log('Token:', token ? 'Present' : 'Missing');
+      
+      try {
+        const res = await apiRequest<any>("/doctors", {
+          method: "GET",
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        console.log('Doctors response:', res);
+        
+        // Debug the response structure
+        if (res && typeof res === 'object') {
+          console.log('Doctor response keys:', Object.keys(res));
+        }
+        
+        if (Array.isArray(res)) {
+          return res;
+        } else if (res && res.doctors && Array.isArray(res.doctors)) {
+          return res.doctors;
+        } else if (res && res.success && res.data && Array.isArray(res.data)) {
+          return res.data;
+        }
+        
+        return [];
+      } catch (error) {
+        console.error('Error fetching doctors:', error);
+        return [];
+      }
+    },
   });
 
-  const { data: appointments } = useQuery<Appointment[]>({
-    queryKey: ["/api/appointments/all"],
+  // Get all appointments
+  const { data: appointments, isLoading: isLoadingAppointments } = useQuery({
+    queryKey: ["/appointments/all"],
     queryFn: async () => {
-      const res = await fetch("/api/appointments/all");
-      if (!res.ok) throw new Error("Failed to fetch appointments");
-      return res.json();
-    }
+      try {
+        const res = await apiRequest<any>("/appointments/all");
+        console.log('Appointments response:', res);
+        
+        // Debug the response structure
+        if (res && typeof res === 'object') {
+          console.log('Appointment response keys:', Object.keys(res));
+        }
+        
+        if (Array.isArray(res)) {
+          return res;
+        } else if (res && res.appointments && Array.isArray(res.appointments)) {
+          return res.appointments;
+        } else if (res && res.success && res.data && Array.isArray(res.data)) {
+          return res.data;
+        }
+        
+        return [];
+      } catch (error) {
+        console.error('Error fetching appointments:', error);
+        return [];
+      }
+    },
   });
 
-  const { data: users } = useQuery<User[]>({
-    queryKey: ["/api/users"],
+  // Get all users
+  const { data: users, isLoading: isLoadingUsers } = useQuery({
+    queryKey: ["/users"],
     queryFn: async () => {
-      const res = await fetch("/api/users");
-      if (!res.ok) throw new Error("Failed to fetch users");
-      return res.json();
-    }
+      try {
+        const response = await apiRequest<any>("/users");
+        console.log('Raw users response:', response);
+        
+        // Handle different response formats
+        if (Array.isArray(response)) {
+          console.log('Response is an array, using directly');
+          return response;
+        } else if (response && response.users && Array.isArray(response.users)) {
+          console.log('Using users array from response object');
+          return response.users;
+        } else if (response && typeof response === 'object') {
+          console.log('Converting response object to array');
+          // Last resort - convert to array if it's an object with user-like properties
+          if (response.username || response.email) {
+            return [response];
+          }
+        }
+        
+        console.log('Fallback to empty array');
+        return [];
+      } catch (error) {
+        console.error('Error fetching users:', error);
+        return [];
+      }
+    },
   });
 
   // Add hospital form schema
@@ -159,11 +251,11 @@ const AdminPage = () => {
   // Add hospital mutation
   const addHospitalMutation = useMutation({
     mutationFn: async (data: z.infer<typeof addHospitalSchema>) => {
-      const res = await apiRequest("POST", "/api/hospitals", data);
+      const res = await apiRequest("POST", "/hospitals", data);
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/hospitals/all"] });
+      queryClient.invalidateQueries({ queryKey: ["/hospitals/all"] });
       setAddHospitalOpen(false);
       addHospitalForm.reset();
       toast({
@@ -183,14 +275,14 @@ const AdminPage = () => {
   // Add doctor mutation
   const addDoctorMutation = useMutation({
     mutationFn: async (data: z.infer<typeof addDoctorSchema>) => {
-      const res = await apiRequest("POST", "/api/doctors", {
+      const res = await apiRequest("POST", "/doctors", {
         ...data,
         hospitalId: parseInt(data.hospitalId),
       });
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/doctors"] });
+      queryClient.invalidateQueries({ queryKey: ["/doctors"] });
       setAddDoctorOpen(false);
       addDoctorForm.reset();
       toast({
@@ -210,11 +302,11 @@ const AdminPage = () => {
   // Delete hospital mutation
   const deleteHospitalMutation = useMutation({
     mutationFn: async (hospitalId: number) => {
-      const res = await apiRequest("DELETE", `/api/hospitals/${hospitalId}`, {});
+      const res = await apiRequest("DELETE", `/hospitals/${hospitalId}`, {});
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/hospitals/all"] });
+      queryClient.invalidateQueries({ queryKey: ["/hospitals/all"] });
       toast({
         title: "Hospital Deleted",
         description: "The hospital has been deleted successfully.",
@@ -232,11 +324,11 @@ const AdminPage = () => {
   // Delete doctor mutation
   const deleteDoctorMutation = useMutation({
     mutationFn: async (doctorId: number) => {
-      const res = await apiRequest("DELETE", `/api/doctors/${doctorId}`, {});
+      const res = await apiRequest("DELETE", `/doctors/${doctorId}`, {});
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/doctors"] });
+      queryClient.invalidateQueries({ queryKey: ["/doctors"] });
       toast({
         title: "Doctor Deleted",
         description: "The doctor has been deleted successfully.",
@@ -246,6 +338,65 @@ const AdminPage = () => {
       toast({
         title: "Error",
         description: "Failed to delete doctor. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Add verify doctor mutation
+  const verifyDoctorMutation = useMutation({
+    mutationFn: async (doctorId: string) => {
+      console.log(`Verifying doctor with ID: ${doctorId}`);
+      const res = await apiRequest<{ success: boolean; message: string; doctor: any }>(
+        `/doctors/${doctorId}/verify`,
+        {
+          method: 'POST', // Changed from PUT to POST to avoid service worker issues
+          body: JSON.stringify({ status: 'verified' })
+        }
+      );
+      console.log('Verify response:', res);
+      return res;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Doctor verification status updated successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/doctors"] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update doctor verification status",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const unverifyDoctorMutation = useMutation({
+    mutationFn: async (doctorId: string) => {
+      console.log(`Unverifying doctor with ID: ${doctorId}`);
+      const res = await apiRequest<{ success: boolean; message: string; doctor: any }>(
+        `/doctors/${doctorId}/verify`,
+        {
+          method: 'POST', // Changed from PUT to POST to avoid service worker issues
+          body: JSON.stringify({ status: 'rejected' })
+        }
+      );
+      console.log('Unverify response:', res);
+      return res;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Doctor verification status updated successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/doctors"] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update doctor verification status",
         variant: "destructive",
       });
     },
@@ -287,17 +438,64 @@ const AdminPage = () => {
           </p>
         </div>
 
-        <Tabs defaultValue="analytics">
-          <TabsList className="grid grid-cols-4 mb-8">
-            <TabsTrigger value="analytics">Analytics</TabsTrigger>
-            <TabsTrigger value="hospitals">Hospitals</TabsTrigger>
-            <TabsTrigger value="doctors">Doctors</TabsTrigger>
-            <TabsTrigger value="appointments">Appointments</TabsTrigger>
-          </TabsList>
+      <Tabs defaultValue="analytics">
+        <TabsList className="grid grid-cols-6 mb-8">
+          <TabsTrigger value="debug">Debug</TabsTrigger>
+          <TabsTrigger value="analytics">Analytics</TabsTrigger>
+          <TabsTrigger value="hospitals">Hospitals</TabsTrigger>
+          <TabsTrigger value="doctors">Doctors</TabsTrigger>
+          <TabsTrigger value="appointments">Appointments</TabsTrigger>
+          <TabsTrigger value="users">Users</TabsTrigger>
+        </TabsList>
 
-          {/* Analytics Tab */}
-          <TabsContent value="analytics">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        {/* Debug Tab */}
+        <TabsContent value="debug">
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle>Debug Information</CardTitle>
+              <CardDescription>View raw data for troubleshooting</CardDescription>
+            </CardHeader>
+            <CardContent className="overflow-auto" style={{maxHeight: '500px'}}>
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">Users Data:</h3>
+                  <pre className="bg-slate-100 dark:bg-slate-800 p-4 rounded-md overflow-auto max-h-40">
+                    {JSON.stringify(users, null, 2) || 'No user data'}
+                  </pre>
+                  <p className="text-sm text-gray-500 mt-1">Loading: {isLoadingUsers ? 'Yes' : 'No'}</p>
+                </div>
+                
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">Doctors Data:</h3>
+                  <pre className="bg-slate-100 dark:bg-slate-800 p-4 rounded-md overflow-auto max-h-40">
+                    {JSON.stringify(doctors, null, 2) || 'No doctor data'}
+                  </pre>
+                  <p className="text-sm text-gray-500 mt-1">Loading: {isLoadingDoctors ? 'Yes' : 'No'}</p>
+                </div>
+                
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">Hospitals Data:</h3>
+                  <pre className="bg-slate-100 dark:bg-slate-800 p-4 rounded-md overflow-auto max-h-40">
+                    {JSON.stringify(hospitals, null, 2) || 'No hospital data'}
+                  </pre>
+                  <p className="text-sm text-gray-500 mt-1">Loading: {isLoadingHospitals ? 'Yes' : 'No'}</p>
+                </div>
+                
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">Appointments Data:</h3>
+                  <pre className="bg-slate-100 dark:bg-slate-800 p-4 rounded-md overflow-auto max-h-40">
+                    {JSON.stringify(appointments, null, 2) || 'No appointment data'}
+                  </pre>
+                  <p className="text-sm text-gray-500 mt-1">Loading: {isLoadingAppointments ? 'Yes' : 'No'}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        {/* Analytics Tab */}
+        <TabsContent value="analytics">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-xl">Total Hospitals</CardTitle>
@@ -549,12 +747,12 @@ const AdminPage = () => {
                             <TableCell>
                               <div className="flex flex-wrap gap-1">
                                 {hospital.specialties?.slice(0, 3).map((specialty, idx) => (
-                                  <Badge key={idx} className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                                  <Badge key={idx} variant="secondary">
                                     {specialty}
                                   </Badge>
                                 ))}
                                 {hospital.specialties && hospital.specialties.length > 3 && (
-                                  <Badge className="bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200">
+                                  <Badge variant="outline">
                                     +{hospital.specialties.length - 3} more
                                   </Badge>
                                 )}
@@ -719,6 +917,7 @@ const AdminPage = () => {
                         <TableHead>Hospital</TableHead>
                         <TableHead>Specialty</TableHead>
                         <TableHead>Rating</TableHead>
+                        <TableHead>Status</TableHead>
                         <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -728,24 +927,72 @@ const AdminPage = () => {
                           <TableRow key={doctor.id}>
                             <TableCell className="font-medium">{doctor.name}</TableCell>
                             <TableCell>
-                              {hospitals?.find((h) => h.id === doctor.hospitalId)?.name || 
+                              {doctor.hospital?.name || 
+                               (hospitals?.find((h) => h.id === doctor.hospitalId)?.name) || 
                                `Hospital ID: ${doctor.hospitalId}`}
                             </TableCell>
                             <TableCell>{doctor.specialty}</TableCell>
                             <TableCell>
-                              {doctor.rating ? (
-                                <div className="flex items-center">
-                                  <span className="mr-1">{doctor.rating}</span>
-                                  <svg className="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
-                                  </svg>
-                                </div>
-                              ) : (
-                                "N/A"
-                              )}
+                              <div className="flex items-center gap-1">
+                                {doctor.rating ? (
+                                  <>
+                                    <span className="font-medium">{doctor.rating.toFixed(1)}</span>
+                                    <div className="flex">
+                                      {[1, 2, 3, 4, 5].map((star) => (
+                                        <svg
+                                          key={star}
+                                          className={`w-4 h-4 ${
+                                            star <= Math.round(doctor.rating)
+                                              ? "text-yellow-400"
+                                              : "text-gray-300"
+                                          }`}
+                                          fill="currentColor"
+                                          viewBox="0 0 20 20"
+                                        >
+                                          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                        </svg>
+                                      ))}
+                                    </div>
+                                  </>
+                                ) : (
+                                  <span className="text-gray-500">No ratings yet</span>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={doctor.isVerified ? "success" : "warning"}>
+                                {doctor.isVerified ? "Verified" : "Pending"}
+                              </Badge>
                             </TableCell>
                             <TableCell className="text-right">
                               <div className="flex justify-end gap-2">
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={() => {
+                                    const doctorId = doctor._id || doctor.id;
+                                    if (!doctorId) {
+                                      toast({
+                                        title: "Error",
+                                        description: "Invalid doctor ID",
+                                        variant: "destructive",
+                                      });
+                                      return;
+                                    }
+                                    if (doctor.isVerified) {
+                                      unverifyDoctorMutation.mutate(doctorId.toString());
+                                    } else {
+                                      verifyDoctorMutation.mutate(doctorId.toString());
+                                    }
+                                  }}
+                                  disabled={verifyDoctorMutation.isPending || unverifyDoctorMutation.isPending}
+                                >
+                                  {verifyDoctorMutation.isPending || unverifyDoctorMutation.isPending 
+                                    ? "Updating..." 
+                                    : doctor.isVerified 
+                                      ? "Unverify" 
+                                      : "Verify"}
+                                </Button>
                                 <Button 
                                   variant="outline" 
                                   size="icon"
@@ -772,7 +1019,7 @@ const AdminPage = () => {
                         ))
                       ) : (
                         <TableRow>
-                          <TableCell colSpan={5} className="h-24 text-center">
+                          <TableCell colSpan={6} className="h-24 text-center">
                             No doctors found
                           </TableCell>
                         </TableRow>
@@ -850,10 +1097,10 @@ const AdminPage = () => {
                               </TableCell>
                               <TableCell>
                                 <Badge 
-                                  className={
-                                    appointment.status === "confirmed" ? "bg-green-100 text-green-800" :
-                                    appointment.status === "pending" ? "bg-yellow-100 text-yellow-800" :
-                                    "bg-red-100 text-red-800"
+                                  variant={
+                                    appointment.status === "confirmed" ? "success" :
+                                    appointment.status === "pending" ? "warning" :
+                                    "destructive"
                                   }
                                 >
                                   {appointment.status}
@@ -897,6 +1144,70 @@ const AdminPage = () => {
                         <TableRow>
                           <TableCell colSpan={6} className="h-24 text-center">
                             No appointments found
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Users Tab */}
+          <TabsContent value="users">
+            <Card>
+              <CardHeader>
+                <CardTitle>Manage Users</CardTitle>
+                <CardDescription>View and manage system users</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Username</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Role</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {users && users.length > 0 ? (
+                        users.map((user) => (
+                          <TableRow key={user.id}>
+                            <TableCell className="font-medium">{user.username}</TableCell>
+                            <TableCell>{user.email}</TableCell>
+                            <TableCell>
+                              <Badge
+                                variant={user.role === 'admin' ? 'destructive' : 
+                                         user.role === 'doctor' ? 'success' : 'secondary'}
+                              >
+                                {user.role}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex justify-end gap-2">
+                                <Button 
+                                  variant="outline" 
+                                  size="icon"
+                                  onClick={() => {
+                                    toast({
+                                      title: "Edit Feature",
+                                      description: "User editing will be available in a future update.",
+                                    });
+                                  }}
+                                >
+                                  <PencilIcon className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={4} className="h-24 text-center">
+                            {isLoadingUsers ? "Loading users..." : "No users found"}
                           </TableCell>
                         </TableRow>
                       )}

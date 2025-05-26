@@ -26,7 +26,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
   const { loginMutation, registerMutation } = useAuth();
 
   const loginSchema = z.object({
-    username: z.string().min(3, "Username must be at least 3 characters"),
+    usernameOrEmail: z.string().min(3, "Username or email must be at least 3 characters"),
     password: z.string().min(6, "Password must be at least 6 characters"),
   });
 
@@ -41,7 +41,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
   const loginForm = useForm<z.infer<typeof loginSchema>>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      username: "",
+      usernameOrEmail: "",
       password: "",
     },
   });
@@ -76,9 +76,9 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4 overflow-hidden">
-        <div className="flex justify-between items-center p-6 border-b border-gray-200 dark:border-gray-700">
-          <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+      <div className="bg-background dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4 overflow-hidden">
+        <div className="flex justify-between items-center p-6 border-b border-border">
+          <h3 className="text-xl font-semibold text-foreground">
             {isLogin ? "Sign In" : "Create Account"}
           </h3>
           <Button variant="ghost" size="icon" onClick={onClose}>
@@ -91,12 +91,12 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
               <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-4">
                 <FormField
                   control={loginForm.control}
-                  name="username"
+                  name="usernameOrEmail"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Username</FormLabel>
+                      <FormLabel className="text-foreground">Username or Email</FormLabel>
                       <FormControl>
-                        <Input placeholder="Enter your username" {...field} />
+                        <Input placeholder="Enter your username or email" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -107,7 +107,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
                   name="password"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Password</FormLabel>
+                      <FormLabel className="text-foreground">Password</FormLabel>
                       <FormControl>
                         <Input type="password" placeholder="Enter your password" {...field} />
                       </FormControl>
@@ -145,7 +145,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Email</FormLabel>
+                      <FormLabel className="text-foreground">Email</FormLabel>
                       <FormControl>
                         <Input type="email" placeholder="Enter your email" {...field} />
                       </FormControl>
@@ -158,7 +158,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
                   name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Full Name</FormLabel>
+                      <FormLabel className="text-foreground">Full Name</FormLabel>
                       <FormControl>
                         <Input placeholder="Enter your full name" {...field} />
                       </FormControl>
@@ -171,7 +171,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
                   name="password"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Password</FormLabel>
+                      <FormLabel className="text-foreground">Password</FormLabel>
                       <FormControl>
                         <Input type="password" placeholder="Create a password" {...field} />
                       </FormControl>
@@ -203,7 +203,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
             </Form>
           )}
           <div className="mt-6 text-center">
-            <p className="text-sm text-gray-700 dark:text-gray-300">
+            <p className="text-sm text-muted-foreground">
               {isLogin ? "Don't have an account?" : "Already have an account?"}{" "}
               <Button 
                 variant="link" 

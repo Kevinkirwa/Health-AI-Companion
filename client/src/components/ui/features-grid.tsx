@@ -18,15 +18,15 @@ const FeaturesGrid: React.FC<FeaturesGridProps> = ({ features }) => {
       {features.map((feature, index) => (
         <div 
           key={index} 
-          className="bg-white dark:bg-gray-700 rounded-xl shadow-md p-6 transition-transform hover:scale-105"
+          className="bg-card dark:bg-gray-700 rounded-xl shadow-md p-6 transition-transform hover:scale-105"
         >
           <div className={`${feature.bgColorClass} rounded-full w-14 h-14 flex items-center justify-center mb-4`}>
             <div className={feature.iconColorClass}>
               {feature.icon}
             </div>
           </div>
-          <h3 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">{feature.title}</h3>
-          <p className="text-gray-600 dark:text-gray-300">{feature.description}</p>
+          <h3 className="text-xl font-semibold mb-2 text-foreground">{feature.title}</h3>
+          <p className="text-muted-foreground">{feature.description}</p>
         </div>
       ))}
     </div>

@@ -1,7 +1,12 @@
 import { Express, Request, Response } from "express";
-import { storage } from "../storage";
-import { ChatMessage, InsertChatMessage } from "@shared/schema";
+import { IStorage } from "../storage";
 import { z } from "zod";
+import { insertChatMessageSchema, type ChatMessage, type InsertChatMessage } from "@shared/schema";
+import { MongoStorage } from "../storage/mongodb";
+import { getGeminiResponse } from "../services/gemini";
+
+// Create storage instance
+const storage = new MongoStorage();
 
 // API key from environment variables
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "mock-api-key";
@@ -48,11 +53,11 @@ export function setupChatRoutes(app: Express): void {
 
   // Get chat history
   app.get("/api/chat/history", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ message: "Authentication required" });
-    }
-    
     try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
       const messages = await storage.getChatMessages(req.user.id);
       res.json(messages);
     } catch (error) {
@@ -73,7 +78,7 @@ export function setupChatRoutes(app: Express): void {
       const { message } = result.data;
       
       // Ensure user is authenticated
-      const userId = req.isAuthenticated() ? req.user.id : 0;
+      const userId = req.isAuthenticated() ? req.user.id : "0";
       
       // Store user message
       const userMessage: InsertChatMessage = {
@@ -86,17 +91,51 @@ export function setupChatRoutes(app: Express): void {
       
       // Get history if authenticated user
       let history: ChatMessage[] = [];
-      if (userId > 0) {
+      if (userId !== "0") {
         history = await storage.getChatMessages(userId);
       }
       
-      // Convert history to the format expected by the AI
+      // Convert history to the format expected by Gemini
       const formattedHistory = history
         .slice(-10) // Only use last 10 messages for context
         .map(msg => ({ role: msg.role, content: msg.content }));
-      
-      // Get AI response
-      const aiResponse = await getGeminiResponse(message, formattedHistory);
+
+      // Add system prompt for health context
+      const systemPrompt = `You are a helpful and empathetic AI assistant with expertise in health and medicine. Your role is to:
+1. Answer any question the user asks, with a focus on health and medical topics
+2. Provide accurate, evidence-based information
+3. Be conversational and engaging while maintaining professionalism
+4. Admit when you're not sure about something
+5. Provide context and explanations for medical terms
+6. Include relevant statistics and research when appropriate
+7. Suggest reliable sources for further reading
+8. Know when to recommend professional medical help
+
+For health-related questions:
+- Provide detailed, accurate information
+- Include practical advice and tips
+- Explain medical concepts in simple terms
+- Mention potential risks and precautions
+- Suggest when to seek professional help
+
+For non-health questions:
+- Answer directly and informatively
+- Maintain a helpful and friendly tone
+- Provide relevant examples or analogies
+- Ask clarifying questions if needed
+
+Remember to:
+- Be thorough but concise
+- Use clear, accessible language
+- Stay up-to-date with current medical knowledge
+- Prioritize user safety and well-being
+- Maintain appropriate boundaries`;
+
+      // Get AI response from Gemini with system prompt
+      const aiResponse = await getGeminiResponse(
+        `${systemPrompt}\n\nUser: ${message}`,
+        formattedHistory
+      );
       
       // Store AI response
       const assistantMessage: InsertChatMessage = {

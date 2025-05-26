@@ -36,39 +36,66 @@ import { Link } from "wouter";
 import { useTheme } from "@/hooks/use-theme";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { countyReferralHospitals } from '@/data/countyReferralHospitals';
 
 const DashboardPage = () => {
   const { user } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { toast } = useToast();
   
-  // Get user appointments
-  const { data: appointments, isLoading: isLoadingAppointments } = useQuery<Appointment[]>({
-    queryKey: ["/api/appointments"],
+  // Fetch appointments
+  const { data: appointments = [], isLoading: isLoadingAppointments } = useQuery({
+    queryKey: ["/api/doctor/appointments"],
     queryFn: async () => {
-      const res = await fetch("/api/appointments");
-      if (!res.ok) throw new Error("Failed to fetch appointments");
-      return res.json();
+      try {
+        const res = await apiRequest("/doctor/appointments", {
+          method: "GET"
+        });
+        return res.appointments || [];
+      } catch (error) {
+        console.error("Error fetching appointments:", error);
+        return [];
+      }
     }
   });
 
-  // Get user saved hospitals
-  const { data: savedHospitals, isLoading: isLoadingSavedHospitals } = useQuery<Hospital[]>({
-    queryKey: ["/api/hospitals/saved"],
+  // Fetch saved hospitals
+  const { data: savedHospitals = [], isLoading: isLoadingHospitals } = useQuery({
+    queryKey: ["/api/doctor/hospitals"],
     queryFn: async () => {
-      const res = await fetch("/api/hospitals/saved");
-      if (!res.ok) throw new Error("Failed to fetch saved hospitals");
-      return res.json();
+      try {
+        const res = await apiRequest("/doctor/hospitals", {
+          method: "GET"
+        });
+        return res.hospitals || [];
+      } catch (error) {
+        console.error("Error fetching hospitals:", error);
+        return [];
+      }
     }
   });
 
-  // Get chat history
-  const { data: chatHistory, isLoading: isLoadingChatHistory } = useQuery<ChatMessage[]>({
-    queryKey: ["/api/chat/history"],
+  // Fetch chat history
+  const { data: chatHistory = [], isLoading: isLoadingChatHistory } = useQuery({
+    queryKey: ["/api/doctor/chat/history"],
     queryFn: async () => {
-      const res = await fetch("/api/chat/history");
-      if (!res.ok) throw new Error("Failed to fetch chat history");
-      return res.json();
+      try {
+        const res = await apiRequest("/doctor/chat/history", {
+          method: "GET"
+        });
+        return res.chatHistory || [];
+      } catch (error) {
+        console.error("Error fetching chat history:", error);
+        return [];
+      }
+    }
+  });
+
+  // Add this new query for county referral hospitals
+  const { data: referralHospitals } = useQuery({
+    queryKey: ["/api/hospitals/referral"],
+    queryFn: async () => {
+      return countyReferralHospitals;
     }
   });
 
@@ -167,9 +194,9 @@ const DashboardPage = () => {
             </CardHeader>
             <CardContent className="flex flex-col items-center">
               <Avatar className="h-24 w-24 mb-4">
-                <AvatarImage src="" alt={user?.name || user?.username} />
+                <AvatarImage src="" alt={user?.name || user?.username || 'User'} />
                 <AvatarFallback className="text-2xl">
-                  {user?.name?.charAt(0) || user?.username.charAt(0)}
+                  {(user?.name?.[0] || user?.username?.[0] || 'U').toUpperCase()}
                 </AvatarFallback>
               </Avatar>
               <h3 className="text-xl font-bold text-gray-900 dark:text-white">
@@ -204,9 +231,10 @@ const DashboardPage = () => {
           {/* Main content area with tabs */}
           <div className="lg:col-span-3">
             <Tabs defaultValue="appointments">
-              <TabsList className="grid grid-cols-3 mb-8">
+              <TabsList className="grid grid-cols-4 mb-8">
                 <TabsTrigger value="appointments">Appointments</TabsTrigger>
                 <TabsTrigger value="saved">Saved Hospitals</TabsTrigger>
+                <TabsTrigger value="referral">Referral Hospitals</TabsTrigger>
                 <TabsTrigger value="history">Chat History</TabsTrigger>
               </TabsList>
 
@@ -301,7 +329,7 @@ const DashboardPage = () => {
                     <CardDescription>Hospitals and clinics you've saved for quick access</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    {isLoadingSavedHospitals ? (
+                    {isLoadingHospitals ? (
                       <div className="py-8 text-center">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500 mx-auto"></div>
                         <p className="mt-2 text-gray-500 dark:text-gray-400">Loading saved hospitals...</p>
@@ -357,6 +385,78 @@ const DashboardPage = () => {
                         <Button asChild>
                           <Link href="/hospitals">Find Hospitals</Link>
                         </Button>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              {/* Add new Referral Hospitals Tab */}
+              <TabsContent value="referral">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>County Referral Hospitals</CardTitle>
+                    <CardDescription>Official referral hospitals in your county</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {referralHospitals && referralHospitals.length > 0 ? (
+                      <div className="space-y-4">
+                        {referralHospitals.map((hospital) => (
+                          <Card key={hospital.id} className="overflow-hidden">
+                            <div className="flex flex-col md:flex-row border-b border-gray-200 dark:border-gray-700">
+                              <div className="p-4 md:w-2/3">
+                                <h3 className="font-medium text-gray-900 dark:text-white">
+                                  {hospital.name}
+                                </h3>
+                                <p className="text-gray-600 dark:text-gray-400">
+                                  {hospital.contact.address}
+                                </p>
+                                <div className="mt-2 flex flex-wrap gap-2">
+                                  {hospital.services.map((service, idx) => (
+                                    <span 
+                                      key={idx} 
+                                      className="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded text-xs"
+                                    >
+                                      {service}
+                                    </span>
+                                  ))}
+                                </div>
+                                <div className="mt-4 flex items-center text-sm text-gray-500 dark:text-gray-400">
+                                  <MapPin className="h-4 w-4 mr-1" /> {hospital.county}
+                                </div>
+                                <div className="mt-1 flex items-center text-sm text-gray-500 dark:text-gray-400">
+                                  <Clock className="h-4 w-4 mr-1" /> {hospital.contact.phone}
+                                </div>
+                              </div>
+                              <div className="p-4 md:w-1/3 flex flex-col justify-center items-end space-y-2">
+                                <Button asChild>
+                                  <Link href={`/booking/${hospital.id}`}>
+                                    Book Appointment
+                                  </Link>
+                                </Button>
+                                <Button variant="outline" onClick={() => {
+                                  // Add to saved hospitals
+                                  const hospitalData = {
+                                    id: hospital.id,
+                                    name: hospital.name,
+                                    address: hospital.contact.address,
+                                    specialties: hospital.services
+                                  };
+                                  // Call your save hospital API
+                                }}>
+                                  <Bookmark className="h-4 w-4 mr-2" />
+                                  Save
+                                </Button>
+                              </div>
+                            </div>
+                          </Card>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="py-8 text-center">
+                        <p className="text-gray-500 dark:text-gray-400 mb-4">
+                          No referral hospitals found in your area.
+                        </p>
                       </div>
                     )}
                   </CardContent>

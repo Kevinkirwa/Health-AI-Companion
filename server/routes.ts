@@ -1,41 +1,30 @@
-import type { Express } from "express";
-import { createServer, type Server } from "http";
-import { storage } from "./storage";
-import { setupAuth } from "./auth";
-import { setupChatRoutes } from "./api/chat";
-import { setupHospitalRoutes } from "./api/hospitals";
-import { setupBookingRoutes } from "./api/bookings";
+import { Express } from 'express';
+import { IStorage } from './storage';
+import { setupAuthRoutes } from './api/auth';
+import { setupChatRoutes } from './api/chat';
+import { setupHospitalRoutes } from './api/hospitals';
+import { setupBookingRoutes } from './api/booking';
+import { setupDoctorRoutes } from './api/doctors';
+import { setupAdminRoutes } from './api/admin';
+import { setupDoctorDashboardRoutes } from './api/doctor-dashboard';
+import { initializeAIRoutes } from './routes/ai';
 
-export async function registerRoutes(app: Express): Promise<Server> {
-  // Setup authentication routes
-  setupAuth(app);
+export function registerRoutes(app: Express, storage: IStorage) {
+  // Register AI routes
+  app.use('/api/ai', initializeAIRoutes());
 
-  // Setup API routes
-  setupChatRoutes(app);
-  setupHospitalRoutes(app);
-  setupBookingRoutes(app);
-
-  // Sample route to test if API is working
-  app.get("/api/healthcheck", (req, res) => {
-    res.json({ status: "ok", message: "AI Health Assistant API is running" });
-  });
-
-  // Admin-only route for user management
-  app.get("/api/users", async (req, res) => {
-    if (!req.isAuthenticated() || req.user.role !== "admin") {
-      return res.status(403).json({ message: "Unauthorized" });
-    }
-    
-    try {
-      const users = await storage.getAllUsers();
-      res.json(users);
-    } catch (error) {
-      res.status(500).json({ message: "Error fetching users" });
-    }
-  });
-
-  // Create HTTP server
-  const httpServer = createServer(app);
-
-  return httpServer;
+  // Register core routes first
+  setupAuthRoutes(app, storage);
+  setupHospitalRoutes(app, storage);
+  setupBookingRoutes(app, storage);
+  
+  // Register doctor-related routes
+  setupDoctorRoutes(app);
+  setupDoctorDashboardRoutes(app, storage);
+  
+  // Register admin routes last
+  setupAdminRoutes(app, storage);
+  
+  // Register chat routes
+  setupChatRoutes(app, storage);
 }

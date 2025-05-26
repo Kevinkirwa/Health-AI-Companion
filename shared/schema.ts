@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, json } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, json, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -61,14 +61,20 @@ export const insertDoctorSchema = createInsertSchema(doctors).omit({
 // Appointments table
 export const appointments = pgTable("appointments", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull(),
-  doctorId: integer("doctor_id").notNull(),
-  hospitalId: integer("hospital_id").notNull(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  doctorId: integer("doctor_id").notNull().references(() => doctors.id),
+  hospitalId: integer("hospital_id").notNull().references(() => hospitals.id),
   date: text("date").notNull(),
   time: text("time").notNull(),
-  status: text("status").default("pending").notNull(),
+  status: text("status").notNull().default("pending"),
   notes: text("notes"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  reminderPreferences: jsonb("reminder_preferences").$type<{
+    sms: boolean;
+    whatsapp: boolean;
+    email: boolean;
+    intervals: number[]; // hours before appointment
+  }>(),
+  createdAt: timestamp("created_at").notNull().defaultNow()
 });
 
 export const insertAppointmentSchema = createInsertSchema(appointments).omit({
@@ -118,6 +124,23 @@ export const insertMentalHealthResourceSchema = createInsertSchema(mentalHealthR
   id: true
 });
 
+// Reminders table
+export const reminders = pgTable("reminders", {
+  id: serial("id").primaryKey(),
+  appointmentId: integer("appointment_id").notNull().references(() => appointments.id),
+  type: text("type").notNull(), // "sms" | "whatsapp" | "email"
+  status: text("status").notNull().default("pending"), // "pending" | "sent" | "confirmed" | "failed"
+  scheduledFor: timestamp("scheduled_for").notNull(),
+  sentAt: timestamp("sent_at"),
+  response: text("response"),
+  createdAt: timestamp("created_at").notNull().defaultNow()
+});
+
+export const insertReminderSchema = createInsertSchema(reminders).omit({
+  id: true,
+  createdAt: true
+});
+
 // Type exports
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -139,3 +162,6 @@ export type InsertFirstAidTip = z.infer<typeof insertFirstAidTipSchema>;
 
 export type MentalHealthResource = typeof mentalHealthResources.$inferSelect;
 export type InsertMentalHealthResource = z.infer<typeof insertMentalHealthResourceSchema>;
+
+export type Reminder = typeof reminders.$inferSelect;
+export type InsertReminder = z.infer<typeof insertReminderSchema>;

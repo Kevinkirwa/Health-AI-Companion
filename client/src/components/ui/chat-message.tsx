@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { format } from "date-fns";
 
 export type MessageRole = "user" | "assistant" | "system";
 
@@ -23,7 +24,13 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
   // Avatar component based on role
   const Avatar = () => {
     if (isUser) {
-      return null; // User doesn't have an avatar on their messages
+      return (
+        <div className="w-8 h-8 rounded-full bg-primary-500 flex items-center justify-center mr-2 flex-shrink-0">
+          <span className="text-white text-sm font-medium">
+            {message.role === "user" ? "U" : "AI"}
+          </span>
+        </div>
+      );
     }
     
     return (
@@ -40,7 +47,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
   const ContentContainer = ({ children }: { children: React.ReactNode }) => {
     if (isUser) {
       return (
-        <div className="bg-primary-500 rounded-lg py-2 px-4 text-white max-w-[80%]">
+        <div className="bg-primary-500 rounded-2xl rounded-tr-none py-2 px-4 text-white max-w-[80%] shadow-sm">
           {children}
         </div>
       );
@@ -48,14 +55,14 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
     
     if (isTyping) {
       return (
-        <div className="bg-white dark:bg-gray-800 rounded-lg py-2 px-4 shadow-sm flex items-center">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl rounded-tl-none py-2 px-4 shadow-sm flex items-center">
           {children}
         </div>
       );
     }
     
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-lg py-2 px-4 shadow-sm max-w-[80%]">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl rounded-tl-none py-2 px-4 shadow-sm max-w-[80%]">
         {children}
       </div>
     );
@@ -87,15 +94,28 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
   };
 
   return (
-    <div className={cn("flex mb-4", isUser && "justify-end")}>
-      <Avatar />
-      <ContentContainer>
-        {isTyping ? (
-          <span className="typing-indicator text-gray-600 dark:text-gray-400"></span>
-        ) : (
-          parseContent(message.content)
-        )}
-      </ContentContainer>
+    <div className={cn("flex mb-4", isUser ? "justify-end" : "justify-start")}>
+      {!isUser && <Avatar />}
+      <div className="flex flex-col">
+        <ContentContainer>
+          {isTyping ? (
+            <div className="flex space-x-1">
+              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }}></div>
+              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }}></div>
+              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }}></div>
+            </div>
+          ) : (
+            parseContent(message.content)
+          )}
+        </ContentContainer>
+        <span className={cn(
+          "text-xs mt-1",
+          isUser ? "text-right text-gray-500" : "text-gray-500"
+        )}>
+          {format(new Date(message.timestamp), "h:mm a")}
+        </span>
+      </div>
+      {isUser && <Avatar />}
     </div>
   );
 };

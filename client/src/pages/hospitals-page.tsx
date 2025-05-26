@@ -1,204 +1,348 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import HospitalCard from "@/components/ui/hospital-card";
-import { Hospital } from "@shared/schema";
-import { MapIcon, ListIcon } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import React, { useState, useEffect } from 'react';
+import { useLocation } from 'wouter';
+import { Hospital } from '@shared/schema';
+import { useAuth } from '../hooks/use-auth';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Select } from '../components/ui/select';
+import { Card } from '../components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
+import { toast } from 'react-hot-toast';
+import { Alert, AlertDescription } from '../components/ui/alert';
+import { MapPin, Phone, Mail, Clock, User, Calendar } from 'lucide-react';
+import { WhatsAppTest } from '../components/WhatsAppTest';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
+import { Badge } from '../components/ui/badge';
 
-const HospitalsPage = () => {
-  const [location, setLocation] = useState("");
-  const [specialty, setSpecialty] = useState("");
-  const [viewType, setViewType] = useState<"map" | "list">("map");
-  const { toast } = useToast();
+export default function HospitalsPage() {
+  const [hospitals, setHospitals] = useState<Hospital[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCounty, setSelectedCounty] = useState('');
+  const [selectedSpecialty, setSelectedSpecialty] = useState('');
+  const [selectedHospital, setSelectedHospital] = useState<Hospital | null>(null);
+  const [showHospitalDetails, setShowHospitalDetails] = useState(false);
+  const [doctorSchedules, setDoctorSchedules] = useState([]);
+  const [loadingSchedules, setLoadingSchedules] = useState(false);
+  const { user } = useAuth();
+  const [, navigate] = useLocation();
 
-  // Fetch hospitals from API
-  const { data: hospitals, isLoading, isError } = useQuery<Hospital[]>({
-    queryKey: ["/api/hospitals", location, specialty],
-    queryFn: async () => {
-      try {
-        const params = new URLSearchParams();
-        if (location) params.append("location", location);
-        if (specialty && specialty !== "all") params.append("specialty", specialty);
+  // List of Kenyan counties
+  const counties = [
+    'Nairobi', 'Mombasa', 'Kisumu', 'Nakuru', 'Eldoret', 'Thika',
+    'Nyeri', 'Kakamega', 'Meru', 'Kisii', 'Garissa', 'Machakos'
+  ];
 
-        const res = await fetch(`/api/hospitals?${params.toString()}`);
-        if (!res.ok) {
-          throw new Error("Failed to fetch hospitals");
-        }
-        return res.json();
-      } catch (error) {
-        console.error("Error fetching hospitals:", error);
-        throw error;
+  // Common medical specialties
+  const specialties = [
+    'General Medicine', 'Pediatrics', 'Surgery', 'Obstetrics & Gynecology',
+    'Orthopedics', 'Cardiology', 'Neurology', 'Dermatology', 'Ophthalmology',
+    'ENT', 'Dental', 'Emergency Medicine'
+  ];
+
+  useEffect(() => {
+    fetchHospitals();
+  }, [searchQuery, selectedCounty, selectedSpecialty]);
+
+  const fetchHospitals = async () => {
+    try {
+      setLoading(true);
+      const queryParams = new URLSearchParams();
+      if (searchQuery) queryParams.append('query', searchQuery);
+      if (selectedCounty) queryParams.append('county', selectedCounty);
+      if (selectedSpecialty) queryParams.append('specialty', selectedSpecialty);
+
+      const response = await fetch(`/api/hospitals/search?${queryParams}`);
+      const data = await response.json();
+
+      if (data.hospitals) {
+        setHospitals(data.hospitals);
+      } else {
+        toast.error(data.message || 'Failed to fetch hospitals');
       }
-    },
-  });
+    } catch (error) {
+      console.error('Error fetching hospitals:', error);
+      toast.error('Failed to fetch hospitals');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const handleSearch = () => {
-    if (!location) {
+  const handleHospitalClick = async (hospital: Hospital) => {
+    try {
+      const response = await fetch(`/api/hospitals/${hospital.id}`);
+      const data = await response.json();
+
+      if (data.success) {
+        setSelectedHospital(data.hospital);
+        setShowHospitalDetails(true);
+        fetchDoctorSchedules(hospital.id);
+      } else {
+        toast.error(data.message || 'Failed to fetch hospital details');
+      }
+    } catch (error) {
+      console.error('Error fetching hospital details:', error);
+      toast.error('Failed to fetch hospital details');
+    }
+  };
+
+  const handleBookAppointment = async (scheduleId: string) => {
+    console.log('Current user:', user); // Debug log
+    
+    if (!user || !user.id) {
+      console.log('No user found, redirecting to login');
+      navigate('/login');
+      return;
+    }
+
+    if (user.role !== 'patient' && user.role !== 'user') {
+      console.log('User role is not allowed to book, current role:', user.role);
       toast({
-        title: "Location Required",
-        description: "Please enter a location to search for hospitals",
+        title: "Cannot book appointment",
+        description: "Only patients can book appointments. Please log in as a patient.",
         variant: "destructive",
       });
       return;
     }
+
+    console.log('User is authenticated and is a patient, proceeding with booking');
+    navigate(`/booking/${scheduleId}`);
+    console.log('Navigating to booking page with path:', `/booking/${scheduleId}`);
   };
 
-  const handleLocationDetect = () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
-          setLocation(`${latitude.toFixed(4)},${longitude.toFixed(4)}`);
-          toast({
-            title: "Location Detected",
-            description: "Your current location has been detected",
-          });
-        },
-        () => {
-          toast({
-            title: "Location Error",
-            description: "Could not detect your location. Please enter it manually.",
-            variant: "destructive",
-          });
-        }
-      );
-    } else {
-      toast({
-        title: "Geolocation Unavailable",
-        description: "Your browser does not support geolocation",
-        variant: "destructive",
-      });
+  const fetchDoctorSchedules = async (hospitalId) => {
+    try {
+      setLoadingSchedules(true);
+      const response = await fetch(`/api/hospitals/${hospitalId}/schedules`);
+      if (response.ok) {
+        const data = await response.json();
+        setDoctorSchedules(data.schedules);
+      } else {
+        console.error('Failed to fetch doctor schedules');
+        setDoctorSchedules([]);
+      }
+    } catch (error) {
+      console.error('Error fetching doctor schedules:', error);
+      setDoctorSchedules([]);
+    } finally {
+      setLoadingSchedules(false);
     }
   };
 
+  const getDayName = (dayOfWeek) => {
+    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    return days[dayOfWeek];
+  };
+
   return (
-    <section className="py-8 md:py-12 bg-white dark:bg-gray-800">
-      <div className="container mx-auto px-4">
-        <div className="text-center mb-8">
-          <h1 className="text-2xl md:text-3xl font-bold mb-4 text-gray-900 dark:text-white">
-            Find Hospitals Near You
-          </h1>
-          <p className="text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-            Locate the nearest hospitals, clinics, and emergency rooms based on your location and specific healthcare needs.
-          </p>
+    <div className="container mx-auto px-4 py-8">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold mb-4">Find Hospitals</h1>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Input
+            placeholder="Search hospitals..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          <Select
+            value={selectedCounty}
+            onChange={(e) => setSelectedCounty(e.target.value)}
+          >
+            <option value="">All Counties</option>
+            {counties.map((county, index) => (
+              <option key={index} value={county}>{county}</option>
+            ))}
+          </Select>
+          <Select
+            value={selectedSpecialty}
+            onChange={(e) => setSelectedSpecialty(e.target.value)}
+          >
+            <option value="">All Specialties</option>
+            {specialties.map((specialty, index) => (
+              <option key={index} value={specialty}>{specialty}</option>
+            ))}
+          </Select>
         </div>
-        
-        {/* Search and Filter Bar */}
-        <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 mb-8 shadow-md">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-grow">
-              <div className="relative">
-                <Input
-                  type="text"
-                  placeholder="Enter your location"
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  className="w-full px-4 py-2 pl-10 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                />
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={handleLocationDetect}
-                  className="absolute left-2 top-1/2 transform -translate-y-1/2"
-                >
-                  <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                  </svg>
+      </div>
+
+      <div className="mb-8 p-4 bg-gray-50 rounded-lg">
+        <WhatsAppTest />
+      </div>
+
+      {loading ? (
+        <div className="text-center">Loading...</div>
+      ) : hospitals.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {hospitals.map((hospital) => (
+            <Card key={hospital.id} className="p-4">
+              <h2 className="text-xl font-semibold mb-2">{hospital.name}</h2>
+              <div className="space-y-2">
+                <p className="flex items-center">
+                  <MapPin className="w-4 h-4 mr-2" />
+                  {hospital.address}
+                </p>
+                <p className="flex items-center">
+                  <Phone className="w-4 h-4 mr-2" />
+                  {hospital.phone}
+                </p>
+                <p className="flex items-center">
+                  <Mail className="w-4 h-4 mr-2" />
+                  {hospital.email}
+                </p>
+                <p className="flex items-center">
+                  <Clock className="w-4 h-4 mr-2" />
+                  {hospital.openHours}
+                </p>
+              </div>
+              <div className="mt-4 flex justify-between">
+                <Button onClick={() => handleHospitalClick(hospital)}>
+                  View Details
+                </Button>
+                <Button onClick={() => handleBookAppointment(hospital.id)}>
+                  Book Appointment
                 </Button>
               </div>
-            </div>
-            <div className="w-full md:w-48">
-              <Select value={specialty} onValueChange={setSpecialty}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All Specialties" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Specialties</SelectItem>
-                  <SelectItem value="general">General Hospital</SelectItem>
-                  <SelectItem value="emergency">Emergency Care</SelectItem>
-                  <SelectItem value="pediatric">Pediatric</SelectItem>
-                  <SelectItem value="dental">Dental</SelectItem>
-                  <SelectItem value="cardiac">Cardiac Center</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <Button
-              onClick={handleSearch}
-              className="px-6 py-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition md:w-auto w-full"
-            >
-              <i className="fas fa-search mr-2"></i> Search
-            </Button>
-          </div>
+            </Card>
+          ))}
         </div>
-        
-        {/* Map and List View Tabs */}
-        <div className="mb-6 flex border-b border-gray-200 dark:border-gray-700">
-          <Button
-            variant="ghost"
-            className={`px-4 py-2 ${viewType === "map" ? "border-b-2 border-primary-500 text-primary-600 dark:text-primary-400" : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"} font-medium`}
-            onClick={() => setViewType("map")}
-          >
-            <MapIcon className="w-4 h-4 mr-2" /> Map View
-          </Button>
-          <Button
-            variant="ghost"
-            className={`px-4 py-2 ${viewType === "list" ? "border-b-2 border-primary-500 text-primary-600 dark:text-primary-400" : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"} font-medium`}
-            onClick={() => setViewType("list")}
-          >
-            <ListIcon className="w-4 h-4 mr-2" /> List View
-          </Button>
-        </div>
+      ) : (
+        <Alert>
+          <AlertDescription>No hospitals found matching your criteria.</AlertDescription>
+        </Alert>
+      )}
 
-        {isLoading ? (
-          <div className="flex justify-center items-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500"></div>
-          </div>
-        ) : isError ? (
-          <div className="text-center py-8">
-            <div className="text-red-500 mb-2">Error loading hospitals</div>
-            <Button onClick={() => handleSearch()}>Try Again</Button>
-          </div>
-        ) : (
-          <div className="flex flex-col md:flex-row gap-6">
-            {/* Map Container */}
-            {viewType === "map" && (
-              <div className="w-full md:w-3/5 bg-gray-200 dark:bg-gray-700 rounded-lg h-96 flex items-center justify-center shadow-md">
-                {/* This would be a Google Maps integration */}
-                <div className="text-center text-gray-500 dark:text-gray-400">
-                  <i className="fas fa-map-marked-alt text-5xl mb-3"></i>
-                  <p>Google Maps integration would appear here</p>
-                  <p className="text-sm">(Showing nearby hospitals based on location)</p>
-                </div>
-              </div>
-            )}
-            
-            {/* Hospital Results */}
-            <div className={viewType === "map" ? "w-full md:w-2/5" : "w-full"}>
-              {hospitals && hospitals.length > 0 ? (
-                hospitals.map((hospital) => (
-                  <HospitalCard key={hospital.id} hospital={hospital} />
-                ))
-              ) : (
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-8 text-center">
-                  <div className="text-gray-500 dark:text-gray-400 mb-4">
-                    <i className="fas fa-hospital-alt text-4xl mb-2"></i>
-                    <p>No hospitals found for your search criteria</p>
+      <Dialog open={showHospitalDetails} onOpenChange={setShowHospitalDetails}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>{selectedHospital?.name}</DialogTitle>
+          </DialogHeader>
+          {selectedHospital && (
+            <div className="space-y-4">
+              <Tabs defaultValue="info" className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="info">Hospital Info</TabsTrigger>
+                  <TabsTrigger value="doctors">Doctor Schedules</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="info" className="space-y-4 pt-4">
+                  <div>
+                    <h3 className="font-semibold">Address</h3>
+                    <p className="flex items-center">
+                      <MapPin className="w-4 h-4 mr-2" />
+                      {selectedHospital.address}
+                    </p>
                   </div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Try adjusting your search or specialty filters
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-    </section>
-  );
-};
+                  <div>
+                    <h3 className="font-semibold">Contact</h3>
+                    <p className="flex items-center">
+                      <Phone className="w-4 h-4 mr-2" />
+                      {selectedHospital.phone}
+                    </p>
+                    <p className="flex items-center">
+                      <Mail className="w-4 h-4 mr-2" />
+                      {selectedHospital.email}
+                    </p>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold">Opening Hours</h3>
+                    <p className="flex items-center">
+                      <Clock className="w-4 h-4 mr-2" />
+                      {selectedHospital.openHours}
+                    </p>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold">Specialties</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedHospital.specialties.map((specialty, index) => (
+                        <Badge key={index} variant="secondary">
+                          {specialty}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                </TabsContent>
 
-export default HospitalsPage;
+                <TabsContent value="doctors" className="space-y-4 pt-4">
+                  <h3 className="font-semibold text-lg mb-4">Available Doctors</h3>
+                  
+                  {loadingSchedules ? (
+                    <div className="text-center py-4">Loading doctor schedules...</div>
+                  ) : doctorSchedules.length > 0 ? (
+                    <div className="space-y-6">
+                      {doctorSchedules.map((item, index) => (
+                        <Card key={index} className="p-4">
+                          <div className="flex items-center gap-4 mb-4">
+                            <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
+                              {item.doctor.profilePicture ? (
+                                <img 
+                                  src={item.doctor.profilePicture} 
+                                  alt={item.doctor.name} 
+                                  className="w-full h-full rounded-full object-cover"
+                                />
+                              ) : (
+                                <User className="w-6 h-6 text-blue-500" />
+                              )}
+                            </div>
+                            <div>
+                              <h4 className="font-semibold">{item.doctor.name}</h4>
+                              <p className="text-sm text-gray-600">{item.doctor.specialization}</p>
+                            </div>
+                          </div>
+                          
+                          <div className="mt-2">
+                            <h5 className="font-medium text-sm mb-2">Available Schedule:</h5>
+                            <div className="grid grid-cols-1 gap-2">
+                              {item.schedules.map((schedule, idx) => (
+                                <div key={idx} className="flex items-center border-b pb-2">
+                                  <Calendar className="w-4 h-4 mr-2 text-blue-500" />
+                                  <span className="font-medium mr-2">{getDayName(schedule.dayOfWeek)}:</span>
+                                  <span>
+                                    {schedule.startTime} - {schedule.endTime}
+                                    {schedule.breakStart && schedule.breakEnd && 
+                                      ` (Break: ${schedule.breakStart} - ${schedule.breakEnd})`}
+                                  </span>
+                                  {!schedule.isAvailable && (
+                                    <Badge variant="destructive" className="ml-2">Unavailable</Badge>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                          
+                          <Button 
+                            className="mt-4" 
+                            onClick={() => handleBookAppointment(item.schedules[0]._id)}
+                          >
+                            {user ? 'Book Appointment' : 'Login to Book'}
+                          </Button>
+                        </Card>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-4 border rounded-md bg-gray-50">
+                      <p>No doctor schedules available for this hospital.</p>
+                    </div>
+                  )}
+                </TabsContent>
+              </Tabs>
+
+              <div className="flex justify-between mt-6">
+                <Button onClick={() => handleBookAppointment(selectedHospital.id)}>
+                  {user ? 'Book Appointment' : 'Login to Book'}
+                </Button>
+                {user && (
+                  <Button
+                    variant="outline"
+                    onClick={() => handleSaveHospital(selectedHospital.id)}
+                  >
+                    {isSaved(selectedHospital.id) ? 'Unsave' : 'Save'}
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

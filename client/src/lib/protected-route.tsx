@@ -5,12 +5,15 @@ import { Redirect, Route } from "wouter";
 export function ProtectedRoute({
   path,
   component: Component,
+  requiredRole,
 }: {
   path: string;
   component: () => React.JSX.Element;
+  requiredRole?: 'admin' | 'doctor' | 'patient';
 }) {
   const { user, isLoading } = useAuth();
 
+  // Show loading state while checking authentication
   if (isLoading) {
     return (
       <Route path={path}>
@@ -21,13 +24,24 @@ export function ProtectedRoute({
     );
   }
 
+  // If no user, redirect to login
   if (!user) {
     return (
       <Route path={path}>
-        <Redirect to="/auth" />
+        <Redirect to="/login" />
       </Route>
     );
   }
 
+  // Check for role-based access
+  if (requiredRole && user.role !== requiredRole) {
+    return (
+      <Route path={path}>
+        <Redirect to="/" />
+      </Route>
+    );
+  }
+
+  // Render the component if authenticated and role matches
   return <Route path={path} component={Component} />;
 }
