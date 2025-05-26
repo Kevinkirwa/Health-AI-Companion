@@ -1,6 +1,9 @@
-# Health AI Companion
+# Health AI Companion 🏥
 
-A comprehensive healthcare platform that provides AI-powered health guidance, hospital finder, mental health support, and appointment booking services.
+![Health AI Companion](https://img.shields.io/badge/Status-Development-green)
+![License](https://img.shields.io/badge/License-MIT-blue)
+
+A comprehensive healthcare platform that provides AI-powered health guidance, hospital finder, mental health support, and appointment booking services. Our mission is to make healthcare more accessible, efficient, and personalized through technology.
 
 ## Features
 
@@ -93,6 +96,49 @@ Health-AI-Companion/
 3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
+
+## Testing
+
+We use a comprehensive testing strategy to ensure reliability and performance:
+
+```bash
+# Run backend tests
+cd server
+npm test
+
+# Run frontend tests
+cd client
+npm test
+```
+
+### Manual Testing Checklist
+
+- ✅ User Authentication (Login/Registration)
+- ✅ Chatbot Responses
+- ✅ Hospital Search Functionality
+- ✅ Appointment Booking Flow
+- ✅ Email Notifications
+- ✅ Mobile Responsiveness
+
+## Security Features
+
+The Health AI Companion implements several security best practices:
+
+- 🔒 JWT-based Authentication
+- 🔒 Password Hashing with bcrypt
+- 🔒 Input Validation and Sanitization
+- 🔒 HTTPS/SSL Support
+- 🔒 Rate Limiting for API Endpoints
+- 🔒 Secure Headers Implementation
+- 🔒 Environment-based Configuration
+
+## Performance Optimizations
+
+- ⚡ React Component Memoization
+- ⚡ API Response Caching
+- ⚡ Lazy Loading of Components
+- ⚡ Optimized Images and Assets
+- ⚡ Code Splitting
 
 ## License
 

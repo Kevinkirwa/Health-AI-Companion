@@ -58,52 +58,67 @@ const DoctorScheduleSelection = () => {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [timeRange, setTimeRange] = useState<TimeRange>({ startTime: "09:00", endTime: "17:00" });
   
-  // Fetch hospitals where doctor works
+  // Fetch hospitals using the public /api/hospitals endpoint instead of doctor-specific one
   const { data: doctorHospitals, isLoading: isLoadingHospitals, error: hospitalError } = useQuery({
-    queryKey: ["doctor-hospitals"],
+    queryKey: ["public-hospitals"],
     queryFn: async () => {
       try {
-        const response = await apiRequest("/api/doctor-dashboard/hospitals", {
+        console.log("Fetching hospitals from public endpoint...");
+        const response = await apiRequest("/api/hospitals", {
           method: "GET"
         });
         
-        // Check if we got data with the fallback flag
-        if (response.fallback) {
-          console.log("Using fallback hospital data:", response.hospitals);
-          // Log the error if one was returned
-          if (response.error) {
-            console.warn("Hospital retrieval error:", response.error);
-          }
+        console.log("Public Hospitals API Response:", response);
+        
+        if (!response.hospitals || !Array.isArray(response.hospitals)) {
+          console.error("Invalid hospital data format from public endpoint:", response);
+          return [{ id: 'public-fallback', name: 'Default Hospital' }];
         }
         
-        return response.hospitals || [];
+        // Transform hospital data to match expected format (id and name)
+        const formattedHospitals = response.hospitals.map(hospital => ({
+          id: hospital._id?.toString() || hospital.id || 'unknown-id',
+          name: hospital.name || 'Unnamed Hospital'
+        }));
+        
+        console.log(`Found ${formattedHospitals.length} hospitals in public response`, formattedHospitals);
+        return formattedHospitals;
       } catch (error) {
         console.error("Failed to fetch hospitals:", error);
         // Return a fallback hospital in case of fetch error
-        return [{ id: 'local-fallback', name: 'Default Hospital' }];
+        return [{ id: 'public-fallback', name: 'Default Hospital' }];
       }
     },
     onSuccess: (data) => {
-      console.log("Hospital data received:", data);
-      setHospitals(data);
-      
-      // If we only have one hospital and no hospital is selected yet, auto-select it
-      if (data.length === 1 && !selectedHospitalId) {
-        console.log("Auto-selecting the only available hospital:", data[0]);
-        setSelectedHospitalId(data[0].id);
-        setIsHospitalSelected(true);
-        toast({
-          title: "Hospital Selected",
-          description: `Auto-selected ${data[0].name} as your hospital.`,
-        });
+      console.log("Hospital data received from public endpoint:", data);
+      // Ensure we're setting a valid array
+      if (Array.isArray(data)) {
+        setHospitals(data);
+        console.log("Updated hospitals state with", data.length, "hospitals");
+        
+        // If we only have one hospital and no hospital is selected yet, auto-select it
+        if (data.length === 1 && !selectedHospitalId) {
+          console.log("Auto-selecting the only available hospital:", data[0]);
+          setSelectedHospitalId(data[0].id);
+          setIsHospitalSelected(true);
+          toast({
+            title: "Hospital Selected",
+            description: `Auto-selected ${data[0].name} as your hospital.`,
+          });
+        }
+      } else {
+        console.error("Received non-array hospital data:", data);
+        setHospitals([{ id: 'data-error', name: 'Data Error Hospital' }]);
       }
     },
     onError: (error) => {
       console.error("Hospital fetch error:", error);
+      // Set a fallback hospital in the state
+      setHospitals([{ id: 'error-fallback', name: 'Fallback Hospital' }]);
       toast({
         variant: "destructive",
         title: "Error loading hospitals",
-        description: "Using default hospital information. You can still set your schedule."
+        description: "Using default hospital information. You can still set your schedule.",
       });
     }
   });
@@ -326,23 +341,35 @@ const DoctorScheduleSelection = () => {
           {/* Hospital Selection */}
           <div className="mb-6">
             <Label htmlFor="hospital-select" className="mb-2 block font-medium">Select Hospital</Label>
+            
+            {/* Debug Output - Will show actual hospital data */}
+            <div className="p-2 mb-2 bg-gray-100 rounded text-xs overflow-auto max-h-20">
+              <p>Loading: {isLoadingHospitals ? 'Yes' : 'No'}</p>
+              <p>Hospitals count: {hospitals.length}</p>
+              <p>First hospital: {hospitals.length > 0 ? `${hospitals[0].id} - ${hospitals[0].name}` : 'None'}</p>
+            </div>
+            
             <div className="flex gap-4 items-center">
-              <Select
-                value={selectedHospitalId}
-                onValueChange={handleHospitalChange}
-                disabled={isLoadingHospitals}
-              >
-                <SelectTrigger className="w-full max-w-md">
-                  <SelectValue placeholder="Select a hospital" />
-                </SelectTrigger>
-                <SelectContent>
-                  {hospitals.map((hospital) => (
-                    <SelectItem key={hospital.id} value={hospital.id}>
-                      {hospital.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {isLoadingHospitals ? (
+                <div className="text-sm text-muted-foreground">Loading hospitals...</div>
+              ) : hospitals.length > 0 ? (
+                <div className="w-full max-w-md">
+                  <select 
+                    className="w-full p-2 border rounded-md" 
+                    value={selectedHospitalId || ''}
+                    onChange={(e) => handleHospitalChange(e.target.value)}
+                  >
+                    <option value="">Select a hospital</option>
+                    {hospitals.map((hospital) => (
+                      <option key={hospital.id} value={hospital.id}>
+                        {hospital.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <div className="text-sm text-muted-foreground">No hospitals available</div>
+              )}
             </div>
 
             {!selectedHospitalId && (

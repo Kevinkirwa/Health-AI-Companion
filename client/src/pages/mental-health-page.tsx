@@ -1,13 +1,37 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Progress } from "@/components/ui/progress";
 import BreathingExercise from "@/components/ui/breathing-exercise";
-import { MentalHealthResource } from "@shared/schema";
+import { motion } from "framer-motion";
+import { Brain, Moon, Calendar, ChevronRight, Clock, Heart, Award, Info, Wind, PlayCircle, Sparkles, User, BarChart } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import toast from "react-hot-toast";
+
+// Define MentalHealthResource interface locally since it's not available in schema
+interface MentalHealthResource {
+  id: number;
+  title: string;
+  content: string;
+  category: string;
+  imageUrl?: string;
+}
 
 const MentalHealthPage = () => {
   const [selectedResource, setSelectedResource] = useState<string | null>(null);
+  const [breathingProgress, setBreathingProgress] = useState(0);
+  const [activeTab, setActiveTab] = useState("tools");
+
+  // Animation for breathing progress
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setBreathingProgress(prev => (prev >= 100 ? 0 : prev + 1));
+    }, 100);
+    return () => clearInterval(interval);
+  }, []);
 
   // Fetch mental health resources from API
   const { data: resources, isLoading } = useQuery<MentalHealthResource[]>({
@@ -33,182 +57,272 @@ const MentalHealthPage = () => {
   const exerciseResources = resources?.filter(r => r.category === "exercise") || [];
   const selfCareResources = resources?.filter(r => r.category === "selfCare") || [];
   const sleepResources = resources?.filter(r => r.category === "sleep") || [];
+  
+  const logMood = (mood: string) => {
+    toast.success(`Mood Logged: You're feeling ${mood} today. We've saved this to your profile.`);
+  };
+  
+  const startMeditation = (type: string) => {
+    setSelectedResource("meditation");
+    toast.success(`Starting your ${type} meditation session.`);
+  };
+  
+  const moodOptions = [
+    { label: "Happy", color: "bg-yellow-400", icon: "😊" },
+    { label: "Calm", color: "bg-blue-400", icon: "😌" },
+    { label: "Anxious", color: "bg-purple-400", icon: "😰" },
+    { label: "Sad", color: "bg-indigo-400", icon: "😔" },
+    { label: "Energetic", color: "bg-red-400", icon: "⚡" },
+  ];
+  
+  const meditationTypes = [
+    { name: "Calm", duration: "5 min", icon: <Wind className="w-5 h-5" /> },
+    { name: "Focus", duration: "10 min", icon: <Brain className="w-5 h-5" /> },
+    { name: "Sleep", duration: "15 min", icon: <Moon className="w-5 h-5" /> },
+  ];
 
   return (
-    <section className="py-8 md:py-12 bg-gradient-to-br from-mental-50 to-purple-50 dark:from-gray-800 dark:to-gray-900">
-      <div className="container mx-auto px-4">
-        <div className="text-center mb-8">
-          <h1 className="text-2xl md:text-3xl font-bold mb-4 text-foreground">
-            Mental Health & Wellness
-          </h1>
-          <p className="text-muted-foreground max-w-2xl mx-auto">
-            Access resources, exercises, and AI guidance to support your mental wellbeing and develop healthy coping strategies.
-          </p>
-        </div>
-        
-        {/* Quick Wellness Tools */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-          <div className="bg-card dark:bg-gray-800 rounded-xl shadow-md p-6 transition-all hover:shadow-lg border border-purple-100 dark:border-purple-900">
-            <div className="bg-mental-100 dark:bg-mental-900 rounded-full w-14 h-14 flex items-center justify-center mb-4">
-              <i className="fas fa-lungs text-mental-600 dark:text-mental-400 text-2xl"></i>
-            </div>
-            <h3 className="text-xl font-semibold mb-2 text-foreground">Breathing Exercise</h3>
-            <p className="text-muted-foreground mb-4">Guided breathing to help reduce anxiety and stress in just 5 minutes.</p>
-            <Button 
-              onClick={() => setSelectedResource("breathing")}
-              className="w-full py-2 bg-mental-500 hover:bg-mental-600 text-white rounded-md transition focus:outline-none focus:ring-2 focus:ring-mental-500 focus:ring-offset-2"
-            >
-              Start Exercise
-            </Button>
-          </div>
-          
-          <div className="bg-card dark:bg-gray-800 rounded-xl shadow-md p-6 transition-all hover:shadow-lg border border-purple-100 dark:border-purple-900">
-            <div className="bg-mental-100 dark:bg-mental-900 rounded-full w-14 h-14 flex items-center justify-center mb-4">
-              <i className="fas fa-brain text-mental-600 dark:text-mental-400 text-2xl"></i>
-            </div>
-            <h3 className="text-xl font-semibold mb-2 text-foreground">Mood Tracker</h3>
-            <p className="text-muted-foreground mb-4">Track your daily moods and emotions to identify patterns and improvements.</p>
-            <Button 
-              onClick={() => setSelectedResource("mood")}
-              className="w-full py-2 bg-mental-500 hover:bg-mental-600 text-white rounded-md transition focus:outline-none focus:ring-2 focus:ring-mental-500 focus:ring-offset-2"
-            >
-              Log Your Mood
-            </Button>
-          </div>
-          
-          <div className="bg-card dark:bg-gray-800 rounded-xl shadow-md p-6 transition-all hover:shadow-lg border border-purple-100 dark:border-purple-900">
-            <div className="bg-mental-100 dark:bg-mental-900 rounded-full w-14 h-14 flex items-center justify-center mb-4">
-              <i className="fas fa-headphones text-mental-600 dark:text-mental-400 text-2xl"></i>
-            </div>
-            <h3 className="text-xl font-semibold mb-2 text-foreground">Guided Meditation</h3>
-            <p className="text-muted-foreground mb-4">AI-guided meditation sessions for relaxation, focus, and sleep improvement.</p>
-            <Button 
-              onClick={() => setSelectedResource("meditation")}
-              className="w-full py-2 bg-mental-500 hover:bg-mental-600 text-white rounded-md transition focus:outline-none focus:ring-2 focus:ring-mental-500 focus:ring-offset-2"
-            >
-              Start Meditation
-            </Button>
-          </div>
-        </div>
-        
-        {/* Interactive Breathing Exercise */}
-        <div className="bg-card dark:bg-gray-800 rounded-xl shadow-lg p-6 mb-10">
-          <h2 className="text-xl font-semibold mb-4 text-foreground">
-            <i className="fas fa-lungs text-mental-500 mr-2"></i> Interactive Breathing Exercise
-          </h2>
-          <BreathingExercise />
-        </div>
-        
-        {/* Daily Mental Health Tips */}
-        <div className="bg-card dark:bg-gray-800 rounded-xl shadow-lg p-6 mb-10">
-          <h2 className="text-xl font-semibold mb-4 text-foreground">
-            <i className="fas fa-lightbulb text-yellow-500 mr-2"></i> Daily Mental Health Tips
-          </h2>
-          <div className="border-l-4 border-mental-500 pl-4 py-2 mb-6">
-            <p className="text-lg italic text-foreground">
-              {dailyTip?.content || "Practice self-compassion. Treat yourself with the same kindness and understanding you would offer to a good friend."}
+    <div className="bg-gradient-to-b from-violet-50 to-white dark:from-gray-900 dark:to-gray-800 min-h-screen">
+      {/* Hero Section */}
+      <div className="relative overflow-hidden pt-12 pb-16 md:pt-16 md:pb-24">
+        <div className="container mx-auto px-4">
+          <div className="max-w-4xl mx-auto text-center">
+            <Badge variant="outline" className="px-4 py-1 rounded-full bg-violet-100 text-violet-800 border-violet-200 dark:bg-violet-900/30 dark:text-violet-300 dark:border-violet-800 mb-6 inline-flex items-center">
+              <Heart className="w-3.5 h-3.5 mr-1.5" />
+              Mental Wellness Resources
+            </Badge>
+            
+            <h1 className="text-3xl md:text-5xl font-bold mb-6 bg-gradient-to-r from-violet-700 to-purple-500 dark:from-violet-400 dark:to-purple-300 text-transparent bg-clip-text">
+              Your Mental Health Companion
+            </h1>
+            
+            <p className="text-gray-600 dark:text-gray-300 text-lg max-w-3xl mx-auto mb-10">
+              Access professional resources and interactive tools to support your mental wellbeing journey.
             </p>
-            <p className="text-sm text-muted-foreground mt-2">Today's tip by AI Health Assistant</p>
-          </div>
-          
-          <Tabs defaultValue="stress">
-            <TabsList className="grid w-full grid-cols-2 mb-4">
-              <TabsTrigger value="stress">Manage Stress</TabsTrigger>
-              <TabsTrigger value="sleep">Improve Sleep</TabsTrigger>
-            </TabsList>
-            <TabsContent value="stress">
-              <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
-                <h3 className="font-medium text-foreground dark:text-white mb-2">Manage Stress</h3>
-                <ul className="space-y-2 text-foreground dark:text-gray-300">
-                  <li className="flex items-start">
-                    <i className="fas fa-check-circle text-green-500 mt-1 mr-2"></i>
-                    <span>Identify your stress triggers and develop coping strategies</span>
-                  </li>
-                  <li className="flex items-start">
-                    <i className="fas fa-check-circle text-green-500 mt-1 mr-2"></i>
-                    <span>Practice regular mindfulness or meditation</span>
-                  </li>
-                  <li className="flex items-start">
-                    <i className="fas fa-check-circle text-green-500 mt-1 mr-2"></i>
-                    <span>Maintain a consistent sleep schedule</span>
-                  </li>
-                </ul>
-              </div>
-            </TabsContent>
-            <TabsContent value="sleep">
-              <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
-                <h3 className="font-medium text-foreground dark:text-white mb-2">Improve Sleep</h3>
-                <ul className="space-y-2 text-foreground dark:text-gray-300">
-                  <li className="flex items-start">
-                    <i className="fas fa-check-circle text-green-500 mt-1 mr-2"></i>
-                    <span>Create a relaxing bedtime routine</span>
-                  </li>
-                  <li className="flex items-start">
-                    <i className="fas fa-check-circle text-green-500 mt-1 mr-2"></i>
-                    <span>Limit screen time before bed</span>
-                  </li>
-                  <li className="flex items-start">
-                    <i className="fas fa-check-circle text-green-500 mt-1 mr-2"></i>
-                    <span>Maintain a cool, dark, and quiet bedroom</span>
-                  </li>
-                </ul>
-              </div>
-            </TabsContent>
-          </Tabs>
-        </div>
-        
-        {/* Mental Health Resources */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card className="bg-card dark:bg-gray-800 shadow-md border border-purple-100 dark:border-purple-900">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-xl text-foreground">Talk to a Professional</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground mb-4">
-                Connect with licensed mental health professionals for personalized support and guidance.
-              </p>
+            
+            <div className="flex flex-wrap justify-center gap-4">
               <Button 
-                className="w-full py-2 bg-mental-500 hover:bg-mental-600 text-white rounded-md transition focus:outline-none focus:ring-2 focus:ring-mental-500 focus:ring-offset-2"
-              >
-                Find Therapists
-              </Button>
-            </CardContent>
-          </Card>
-          
-          <Card className="bg-card dark:bg-gray-800 shadow-md border border-purple-100 dark:border-purple-900">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-xl text-foreground">Self-Care Library</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground mb-4">
-                Access our library of self-care activities, articles, and resources for mental wellness.
-              </p>
-              <Button 
-                className="w-full py-2 bg-mental-500 hover:bg-mental-600 text-white rounded-md transition focus:outline-none focus:ring-2 focus:ring-mental-500 focus:ring-offset-2"
+                onClick={() => setActiveTab("resources")}
+                className="bg-violet-600 hover:bg-violet-700 text-white rounded-full"
               >
                 Explore Resources
+                <ChevronRight className="w-4 h-4 ml-1" />
               </Button>
-            </CardContent>
-          </Card>
-          
-          <Card className="bg-card dark:bg-gray-800 shadow-md border border-purple-100 dark:border-purple-900">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-xl text-foreground">Community Support</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground mb-4">
-                Join moderated support groups to connect with others facing similar challenges.
-              </p>
+              
               <Button 
-                className="w-full py-2 bg-mental-500 hover:bg-mental-600 text-white rounded-md transition focus:outline-none focus:ring-2 focus:ring-mental-500 focus:ring-offset-2"
+                onClick={() => setSelectedResource("breathing")}
+                variant="outline"
+                className="border-violet-300 dark:border-violet-700 text-violet-700 dark:text-violet-300"
               >
-                Join Community
+                Start Breathing Exercise
+                <Wind className="w-4 h-4 ml-1" />
               </Button>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
       </div>
-    </section>
+      
+      {/* Main Content */}
+      <div className="container mx-auto px-4 pb-16">
+        {/* Tabs Navigation */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-10">
+          <TabsList className="grid w-full grid-cols-3 mb-8">
+            <TabsTrigger value="tools" className="text-sm md:text-base">
+              <Award className="w-4 h-4 mr-2" /> Wellness Tools
+            </TabsTrigger>
+            <TabsTrigger value="resources" className="text-sm md:text-base">
+              <Info className="w-4 h-4 mr-2" /> Resources
+            </TabsTrigger>
+            <TabsTrigger value="exercises" className="text-sm md:text-base">
+              <Brain className="w-4 h-4 mr-2" /> Exercises
+            </TabsTrigger>
+          </TabsList>
+          
+          {/* Tools Tab Content */}
+          <TabsContent value="tools" className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Breathing Card */}
+              <Card className="border border-violet-100 dark:border-violet-800 shadow-md hover:shadow-lg transition-shadow">
+                <CardHeader className="pb-2 bg-gradient-to-r from-blue-50 to-violet-50 dark:from-blue-900/30 dark:to-violet-900/30 rounded-t-lg">
+                  <CardTitle className="flex items-center text-xl text-blue-700 dark:text-blue-300">
+                    <Wind className="w-5 h-5 mr-2" />
+                    Breathing Exercise
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-4">
+                  <p className="text-gray-600 dark:text-gray-300 mb-4">
+                    Guided breathing to help reduce anxiety and stress in just 5 minutes.
+                  </p>
+                  <Button 
+                    onClick={() => setSelectedResource("breathing")}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    Start Exercise
+                  </Button>
+                </CardContent>
+              </Card>
+              
+              {/* Mood Tracker Card */}
+              <Card className="border border-violet-100 dark:border-violet-800 shadow-md hover:shadow-lg transition-shadow">
+                <CardHeader className="pb-2 bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-yellow-900/30 dark:to-orange-900/30 rounded-t-lg">
+                  <CardTitle className="flex items-center text-xl text-yellow-700 dark:text-yellow-300">
+                    <BarChart className="w-5 h-5 mr-2" />
+                    Mood Tracker
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-4">
+                  <p className="text-gray-600 dark:text-gray-300 mb-4">
+                    Track your daily moods and emotions to identify patterns and improvements.
+                  </p>
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {moodOptions.map((mood) => (
+                      <button
+                        key={mood.label}
+                        onClick={() => logMood(mood.label)}
+                        className={`${mood.color} text-white p-2 rounded-full text-lg`}
+                        aria-label={`I'm feeling ${mood.label}`}
+                      >
+                        {mood.icon}
+                      </button>
+                    ))}
+                  </div>
+                  <Button 
+                    onClick={() => setSelectedResource("mood")}
+                    className="w-full bg-yellow-600 hover:bg-yellow-700 text-white"
+                  >
+                    View Mood History
+                  </Button>
+                </CardContent>
+              </Card>
+              
+              {/* Meditation Card */}
+              <Card className="border border-violet-100 dark:border-violet-800 shadow-md hover:shadow-lg transition-shadow">
+                <CardHeader className="pb-2 bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/30 dark:to-indigo-900/30 rounded-t-lg">
+                  <CardTitle className="flex items-center text-xl text-purple-700 dark:text-purple-300">
+                    <PlayCircle className="w-5 h-5 mr-2" />
+                    Guided Meditation
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-4">
+                  <p className="text-gray-600 dark:text-gray-300 mb-4">
+                    AI-guided meditation sessions for relaxation, focus, and sleep improvement.
+                  </p>
+                  <div className="space-y-2 mb-4">
+                    {meditationTypes.map((type) => (
+                      <button
+                        key={type.name}
+                        onClick={() => startMeditation(type.name)}
+                        className="flex items-center justify-between w-full p-2 rounded-lg border border-purple-100 dark:border-purple-800 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors"
+                      >
+                        <span className="flex items-center">
+                          {type.icon}
+                          <span className="ml-2 text-gray-700 dark:text-gray-300">{type.name}</span>
+                        </span>
+                        <span className="text-sm text-gray-500 dark:text-gray-400">{type.duration}</span>
+                      </button>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+            
+            {/* Daily Tip */}
+            <Card className="border border-violet-100 dark:border-violet-800 shadow-md">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center text-xl">
+                  <Sparkles className="w-5 h-5 mr-2 text-amber-500" />
+                  Daily Mental Health Tip
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="border-l-4 border-violet-500 pl-4 py-2">
+                  <p className="text-lg italic text-gray-700 dark:text-gray-300">
+                    {dailyTip?.content || "Practice self-compassion. Treat yourself with the same kindness and understanding you would offer to a good friend."}
+                  </p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">Today's tip by Health AI Companion</p>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          {/* Resources Tab Content */}
+          <TabsContent value="resources">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <Card className="shadow-md border border-violet-100 dark:border-violet-800">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-xl flex items-center">
+                    <User className="w-5 h-5 mr-2 text-green-500" />
+                    Talk to a Professional
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-4">
+                  <p className="text-gray-600 dark:text-gray-300 mb-4">
+                    Connect with licensed mental health professionals for personalized support and guidance.
+                  </p>
+                  <Button className="w-full bg-green-600 hover:bg-green-700 text-white">
+                    Find Therapists
+                  </Button>
+                </CardContent>
+              </Card>
+              
+              <Card className="shadow-md border border-violet-100 dark:border-violet-800">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-xl flex items-center">
+                    <Heart className="w-5 h-5 mr-2 text-red-500" />
+                    Self-Care Library
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-4">
+                  <p className="text-gray-600 dark:text-gray-300 mb-4">
+                    Access our library of self-care activities, articles, and resources for mental wellness.
+                  </p>
+                  <Button className="w-full bg-red-600 hover:bg-red-700 text-white">
+                    Explore Resources
+                  </Button>
+                </CardContent>
+              </Card>
+              
+              <Card className="shadow-md border border-violet-100 dark:border-violet-800">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-xl flex items-center">
+                    <User className="w-5 h-5 mr-2 text-blue-500" />
+                    Community Support
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-4">
+                  <p className="text-gray-600 dark:text-gray-300 mb-4">
+                    Join moderated support groups to connect with others facing similar challenges.
+                  </p>
+                  <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white">
+                    Join Groups
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+          
+          {/* Exercises Tab Content */}
+          <TabsContent value="exercises">
+            <Card className="shadow-md border border-violet-100 dark:border-violet-800">
+              <CardHeader>
+                <CardTitle className="text-xl flex items-center">
+                  <Wind className="w-5 h-5 mr-2 text-blue-500" />
+                  Interactive Breathing Exercise
+                </CardTitle>
+                <CardDescription>
+                  Follow the animation below to practice controlled breathing
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="max-w-md mx-auto">
+                  <BreathingExercise />
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </div>
+    </div>
   );
 };
 

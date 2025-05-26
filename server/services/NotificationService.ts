@@ -3,7 +3,7 @@ import { User } from '../models/User';
 import { Doctor } from '../models/Doctor';
 import { Appointment } from '../models/Appointment';
 import { sendSMS } from '../utils/sms';
-import { sendWhatsApp } from '../utils/whatsapp';
+import { sendAppointmentReminderEmail } from '../utils/appointment-notifications';
 
 export class NotificationService {
   // Create reminders for an appointment
@@ -25,19 +25,18 @@ export class NotificationService {
       // Default intervals: 24 hours and 1 hour before appointment
       const intervals = preferences?.intervals || [24, 1];
       
-      const reminders = await Promise.all(intervals.map(async (hours) => {
+      const reminders = await Promise.all(intervals.map(async (hours: number) => {
         const scheduledFor = new Date(appointmentDateTime.getTime() - (hours * 60 * 60 * 1000));
-        
-        // Create reminder for patient
+                // Create reminder for patient
         const patientReminder = new Reminder({
           appointmentId: appointment._id,
           userId,
           doctorId,
-          type: 'whatsapp',
+          type: 'email',  // Changed from 'whatsapp' to 'email'
           scheduledFor,
           notificationPreferences: {
-            sms: user.preferences?.notificationChannels?.sms || false,
-            whatsapp: user.preferences?.notificationChannels?.whatsapp || true
+            sms: (user as any).preferences?.notificationChannels?.sms || false,
+            email: (user as any).preferences?.notificationChannels?.email || true  // Use email instead of WhatsApp
           },
           intervals,
           message: `Reminder: You have an appointment with Dr. ${doctor.name} in ${hours} hour(s)`
@@ -48,11 +47,11 @@ export class NotificationService {
           appointmentId: appointment._id,
           userId: doctorId,
           doctorId,
-          type: 'whatsapp',
+          type: 'email',  // Changed from 'whatsapp' to 'email'
           scheduledFor,
           notificationPreferences: {
-            sms: doctor.notificationPreferences?.sms || false,
-            whatsapp: doctor.notificationPreferences?.whatsapp || true
+            sms: (doctor as any).notificationPreferences?.sms || false,
+            email: (doctor as any).notificationPreferences?.email || true  // Use email instead of WhatsApp
           },
           intervals,
           message: `Reminder: You have an appointment with patient ${user.name} in ${hours} hour(s)`
@@ -106,12 +105,12 @@ export class NotificationService {
             }
           }
 
-          if (reminder.notificationPreferences.whatsapp) {
-            const whatsappNumber = user.role === 'doctor' ? user.whatsappNumber : user.whatsappNumber;
-            if (whatsappNumber) {
+          if (reminder.notificationPreferences.email) {
+            const email = user.role === 'doctor' ? user.email : user.email;
+            if (email) {
               notificationPromises.push(
-                this.sendWhatsAppNotification(user, doctor, appointment, reminder)
-                  .catch(error => console.error('WhatsApp notification failed:', error))
+                this.sendEmailNotification(user, doctor, appointment, reminder)
+                  .catch(error => console.error('Email notification failed:', error))
               );
             }
           }
@@ -128,7 +127,7 @@ export class NotificationService {
         } catch (error) {
           console.error('Error processing reminder:', error);
           reminder.status = 'failed';
-          reminder.response = error.message;
+          reminder.response = error instanceof Error ? error.message : String(error);
           await reminder.save();
         }
       }
@@ -145,11 +144,9 @@ export class NotificationService {
     await sendSMS(phoneNumber, message);
   }
 
-  // Send WhatsApp notification
-  private static async sendWhatsAppNotification(user: any, doctor: any, appointment: any, reminder: any) {
-    const message = `Reminder: Appointment with Dr. ${doctor.name} on ${appointment.date} at ${appointment.time}. ${reminder.message}`;
-    const whatsappNumber = user.role === 'doctor' ? user.whatsappNumber : user.whatsappNumber;
-    await sendWhatsApp(whatsappNumber, message);
+  // Send Email notification
+  private static async sendEmailNotification(user: any, doctor: any, appointment: any, reminder: any) {
+    await sendAppointmentReminderEmail(user, doctor, appointment, reminder);
   }
 
   // Get user's upcoming reminders

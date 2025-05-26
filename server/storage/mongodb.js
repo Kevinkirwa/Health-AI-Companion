@@ -175,12 +175,51 @@ class MongoStorage {
   async getHospitalsByIds(hospitalIds) {
     await this.ensureConnection();
     try {
-      console.log('🔍 Finding hospitals with IDs:', hospitalIds);
-      const hospitals = await this.Hospital.find({
-        _id: { $in: hospitalIds }
-      });
-      console.log(`✅ Found ${hospitals.length} hospitals`);
-      return hospitals.map(hospital => hospital.toObject());
+      // Validate input
+      if (!hospitalIds || !Array.isArray(hospitalIds) || hospitalIds.length === 0) {
+        console.error('❌ Invalid hospital IDs provided:', hospitalIds);
+        return [];
+      }
+      
+      // Filter out any invalid IDs
+      const validIds = hospitalIds.filter(id => id && typeof id === 'string' && id.length > 0);
+      
+      if (validIds.length === 0) {
+        console.error('❌ No valid hospital IDs after filtering');
+        return [];
+      }
+      
+      console.log('🔍 Finding hospitals with IDs:', validIds);
+      
+      try {
+        const hospitals = await this.Hospital.find({
+          _id: { $in: validIds }
+        });
+        console.log(`✅ Found ${hospitals.length} hospitals`);
+        
+        // Make sure each hospital has required properties before returning
+        return hospitals.map(hospital => {
+          const hospitalObj = hospital.toObject();
+          return {
+            ...hospitalObj,
+            _id: hospitalObj._id || 'unknown',
+            name: hospitalObj.name || 'Unknown Hospital'
+          };
+        });
+      } catch (findError) {
+        console.error('❌ Error in MongoDB find operation:', findError);
+        
+        // As a fallback, try to find any hospital
+        console.log('⚠️ Trying to find any hospital as fallback');
+        const anyHospital = await this.Hospital.findOne();
+        
+        if (anyHospital) {
+          console.log('✅ Found a fallback hospital');
+          return [anyHospital.toObject()];
+        }
+        
+        return [];
+      }
     } catch (error) {
       console.error('❌ Error getting hospitals by IDs:', error);
       return [];
@@ -190,21 +229,60 @@ class MongoStorage {
   async getHospitalsForDoctor(doctorId) {
     await this.ensureConnection();
     try {
-      console.log('🔍 Finding hospitals for doctor ID:', doctorId);
-      // Look for hospitals where the doctor is listed
-      const hospitals = await this.Hospital.find({
-        doctors: doctorId
-      });
-      
-      if (hospitals.length === 0) {
-        console.log('⚠️ No hospitals found for doctor, checking for default hospital');
-        // If no hospitals found, return at least the first hospital as a fallback
-        const defaultHospital = await this.Hospital.findOne();
-        return defaultHospital ? [defaultHospital.toObject()] : [];
+      // Validate input - now accepts both string and ObjectId formats
+      if (!doctorId) {
+        console.error('❌ Empty doctor ID provided');
+        return [];
       }
       
-      console.log(`✅ Found ${hospitals.length} hospitals for doctor`);
-      return hospitals.map(hospital => hospital.toObject());
+      // Convert doctorId to string safely if it's an ObjectId
+      let doctorIdString;
+      try {
+        // If it's an ObjectId instance, convert to string
+        if (doctorId.toString && typeof doctorId.toString === 'function') {
+          doctorIdString = doctorId.toString();
+          console.log('🔍 Converted ObjectId to string:', doctorIdString);
+        } else if (typeof doctorId === 'string') {
+          doctorIdString = doctorId;
+        } else {
+          throw new Error('Invalid ID format');
+        }
+      } catch (e) {
+        console.error('❌ Error converting doctor ID:', e);
+        return [];
+      }
+      
+      console.log('🔍 Finding hospitals for doctor ID:', doctorIdString);
+      
+      // Try finding by string ID first
+      const hospitals = await this.Hospital.find({
+        doctors: doctorIdString
+      });
+      
+      if (hospitals.length > 0) {
+        console.log(`✅ Found ${hospitals.length} hospitals for doctor by string ID`);
+        return hospitals.map(hospital => hospital.toObject());
+      }
+      
+      // If no results, try finding by ObjectId directly
+      console.log('🔍 Trying to find hospitals by ObjectId');
+      try {
+        const objectIdHospitals = await this.Hospital.find({
+          doctors: mongoose.Types.ObjectId(doctorIdString)
+        });
+        
+        if (objectIdHospitals.length > 0) {
+          console.log(`✅ Found ${objectIdHospitals.length} hospitals for doctor by ObjectId`);
+          return objectIdHospitals.map(hospital => hospital.toObject());
+        }
+      } catch (objectIdError) {
+        console.log('Failed to find by ObjectId:', objectIdError.message);
+      }
+      
+      // If still no hospitals found, return a default hospital as fallback
+      console.log('⚠️ No hospitals found for doctor, returning default hospital');
+      const defaultHospital = await this.Hospital.findOne();
+      return defaultHospital ? [defaultHospital.toObject()] : [];
     } catch (error) {
       console.error('❌ Error getting hospitals for doctor:', error);
       return [];
@@ -338,11 +416,67 @@ class MongoStorage {
 
   async createAppointment(insertAppointment) {
     await this.ensureConnection();
+    
+    console.log('🔶 BOOKING: Creating new appointment with data:', JSON.stringify(insertAppointment, null, 2));
+    
+    // Create and save the appointment
     const appointment = new this.Appointment({
       ...insertAppointment,
       status: insertAppointment.status || 'pending'
     });
     await appointment.save();
+    console.log(`🔶 BOOKING: Appointment created with ID: ${appointment._id}`);
+    
+    try {
+      console.log('🔶 BOOKING: Setting up WhatsApp notifications...');
+      // Get the WhatsApp notification utility
+      const { sendAppointmentConfirmation } = require('../utils/whatsapp');
+      
+      // Fetch related entities for the notification
+      console.log(`🔶 BOOKING: Fetching doctor data for ID: ${insertAppointment.doctorId}`);
+      const doctor = await this.User.findById(insertAppointment.doctorId).populate('userId');
+      console.log(`🔶 BOOKING: Fetching patient data for ID: ${insertAppointment.patientId}`);
+      const patient = await this.User.findById(insertAppointment.patientId);
+      console.log(`🔶 BOOKING: Fetching hospital data for ID: ${insertAppointment.hospitalId}`);
+      const hospital = await this.Hospital.findById(insertAppointment.hospitalId);
+      
+      console.log('🔶 BOOKING: Doctor data:', doctor ? 'Found' : 'Not found');
+      console.log('🔶 BOOKING: Patient data:', patient ? 'Found' : 'Not found');
+      console.log('🔶 BOOKING: Hospital data:', hospital ? 'Found' : 'Not found');
+      
+      // Check if patient phone number exists for WhatsApp
+      if (patient && insertAppointment.phoneNumber) {
+        console.log(`🔶 BOOKING: Patient provided phone number: ${insertAppointment.phoneNumber}`);
+        // Ensure patient has WhatsApp number set
+        patient.whatsappNumber = insertAppointment.phoneNumber;
+      }
+      
+      if (doctor && patient && hospital) {
+        console.log('🔶 BOOKING: All entities found, sending WhatsApp notifications...');
+        // Send WhatsApp notifications asynchronously (don't await)
+        sendAppointmentConfirmation(appointment.toObject(), doctor.toObject(), patient.toObject(), hospital.toObject())
+          .then((results) => {
+            console.log('✅ BOOKING: Appointment notifications sent successfully');
+            console.log('📱 BOOKING: Notification results:', JSON.stringify(results, null, 2));
+          })
+          .catch(error => {
+            console.error('❌ BOOKING: Error sending appointment notifications:', error);
+            console.error('❌ BOOKING: Error details:', error.message);
+            if (error.code) {
+              console.error(`❌ BOOKING: Twilio error code: ${error.code}, status: ${error.status}`);
+            }
+          });
+      } else {
+        console.warn('⚠️ BOOKING: Could not send appointment notifications: Missing data');
+        console.warn(`⚠️ BOOKING: Doctor: ${!!doctor}, Patient: ${!!patient}, Hospital: ${!!hospital}`);
+      }
+    } catch (error) {
+      // Log the error but don't fail the appointment creation
+      console.error('❌ BOOKING: Error with appointment notifications:', error);
+      console.error('❌ BOOKING: Stack trace:', error.stack);
+    }
+    
+    console.log('🔶 BOOKING: Returning appointment data to client');
     return appointment.toObject();
   }
 

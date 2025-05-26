@@ -175,29 +175,80 @@ export default function HospitalsPage() {
           
           {/* Search and Filter Section */}
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 mb-8">
-            <div className="w-full max-w-xl mx-auto">
-              <div className="relative">
-                <Input
-                  placeholder="Search hospitals by name, specialty, or location..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600 rounded-lg w-full py-3"
-                />
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Search className="h-5 w-5 text-gray-400" />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 text-left">Search</label>
+                <div className="relative">
+                  <Input
+                    placeholder="Search hospitals by name..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10 bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600 rounded-lg"
+                  />
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Search className="h-5 w-5 text-gray-400" />
+                  </div>
                 </div>
-                {searchQuery && (
-                  <button 
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
-                    onClick={() => setSearchQuery('')}
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 text-left">County</label>
+                <Select
+                  value={selectedCounty}
+                  onChange={(e) => setSelectedCounty(e.target.value)}
+                  className="bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600 rounded-lg"
+                >
+                  <option value="">All Counties</option>
+                  {counties.map((county, index) => (
+                    <option key={index} value={county}>{county}</option>
+                  ))}
+                </Select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 text-left">Specialty</label>
+                <Select
+                  value={selectedSpecialty}
+                  onChange={(e) => setSelectedSpecialty(e.target.value)}
+                  className="bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600 rounded-lg"
+                >
+                  <option value="">All Specialties</option>
+                  {specialties.map((specialty, index) => (
+                    <option key={index} value={specialty}>{specialty}</option>
+                  ))}
+                </Select>
               </div>
             </div>
             
-            {/* Note: We've simplified the UI to only use the search functionality */}
+            {/* Active Filters */}
+            {(selectedCounty || selectedSpecialty || searchQuery) && (
+              <div className="mt-4 flex flex-wrap gap-2">
+                {searchQuery && (
+                  <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-800 py-1 px-3">
+                    Search: {searchQuery}
+                    <button className="ml-2" onClick={() => setSearchQuery('')}>×</button>
+                  </Badge>
+                )}
+                {selectedCounty && (
+                  <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-300 dark:border-green-800 py-1 px-3">
+                    County: {selectedCounty}
+                    <button className="ml-2" onClick={() => setSelectedCounty('')}>×</button>
+                  </Badge>
+                )}
+                {selectedSpecialty && (
+                  <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-900/20 dark:text-purple-300 dark:border-purple-800 py-1 px-3">
+                    Specialty: {selectedSpecialty}
+                    <button className="ml-2" onClick={() => setSelectedSpecialty('')}>×</button>
+                  </Badge>
+                )}
+                <button 
+                  onClick={clearFilters}
+                  className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 underline ml-2"
+                >
+                  Clear all
+                </button>
+              </div>
+            )}
           </div>
         </div>
 

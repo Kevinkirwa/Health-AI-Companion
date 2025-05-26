@@ -1,5 +1,5 @@
 const twilio = require("twilio");
-const sgMail = require("@sendgrid/mail");
+const nodemailer = require("nodemailer");
 const twilioService = require('../services/twilio');
 const { MongoStorage } = require('../storage/mongodb');
 
@@ -16,10 +16,23 @@ if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN) {
   }
 }
 
-if (process.env.SENDGRID_API_KEY) {
-  sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+// Create nodemailer transporter
+let emailTransporter = null;
+if (process.env.EMAIL_USER && process.env.EMAIL_PASSWORD) {
+  try {
+    emailTransporter = nodemailer.createTransport({
+      service: process.env.EMAIL_SERVICE || 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASSWORD,
+      },
+    });
+    console.log('Email transporter initialized successfully');
+  } catch (error) {
+    console.warn("Failed to initialize email transporter:", error.message);
+  }
 } else {
-  console.warn("SendGrid API key not found. Email notifications will be disabled.");
+  console.warn("Email credentials not found. Email notifications will be disabled.");
 }
 
 async function sendSMS(phone, message) {
@@ -67,19 +80,20 @@ async function sendWhatsApp(phone, message) {
 }
 
 async function sendEmail(email, subject, message) {
-  if (!process.env.SENDGRID_API_KEY) {
-    console.warn("SendGrid API key not found. Email notifications are disabled.");
+  if (!emailTransporter) {
+    console.warn("Email transporter not initialized. Email notifications are disabled.");
     return false;
   }
 
   try {
-    await sgMail.send({
+    const result = await emailTransporter.sendMail({
       to: email,
-      from: process.env.SENDGRID_FROM_EMAIL,
+      from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
       subject,
       text: message,
       html: message.replace(/\n/g, "<br>")
     });
+    console.log('Email sent successfully:', result.messageId);
     return true;
   } catch (error) {
     console.error("Failed to send email:", error);
@@ -220,27 +234,47 @@ class ReminderWorker {
             : null
         };
         
-        // Send follow-up reminder to patient
-        if (patient.phone) {
-          await twilioService.sendFollowUpReminder(patient.phone, appointmentDetails);
+        // Send follow-up reminder to patient via email
+        if (patient.email) {
+          const patientSubject = `Follow-up for your appointment on ${appointmentDetails.appointmentDate}`;
+          const patientMessage = `
+            <h2>Appointment Follow-up</h2>
+            <p>Hello ${appointmentDetails.patientName},</p>
+            <p>We're following up on your recent appointment with Dr. ${appointmentDetails.doctorName} on ${appointmentDetails.appointmentDate}.</p>
+            ${appointmentDetails.customMessage ? `<p>${appointmentDetails.customMessage}</p>` : ''}
+            ${appointmentDetails.followUpNeeded ? `
+              <p><strong>Important:</strong> A follow-up appointment has been scheduled for you on ${appointmentDetails.followUpDate}.</p>
+              <p>Please make sure this date works for you. If not, contact us to reschedule.</p>
+            ` : ''}            
+            <p>If you have any questions or concerns, please don't hesitate to contact us.</p>
+            <p>Thank you for choosing Health AI Companion for your healthcare needs.</p>
+            <p>Best regards,<br>Health AI Companion Team</p>
+          `;
+          
+          await sendEmail(patient.email, patientSubject, patientMessage);
           
           // Mark as follow-up sent
           await this.storage.markFollowUpSent(appointment._id);
           
-          console.log(`Sent follow-up reminder for appointment: ${appointment._id}`);
+          console.log(`Sent email follow-up reminder for appointment: ${appointment._id} to ${patient.email}`);
         }
         
-        // Notify doctor about the follow-up
-        if (doctor.phone) {
-          const doctorMessage = `A follow-up reminder has been sent to ${patient.name} regarding their appointment on ${appointmentDetails.appointmentDate}.`;
+        // Notify doctor about the follow-up via email
+        if (doctor.email) {
+          const doctorSubject = `Follow-up sent: ${patient.name}'s appointment on ${appointmentDetails.appointmentDate}`;
+          const doctorMessage = `
+            <h2>Follow-up Notification</h2>
+            <p>Hello Dr. ${appointmentDetails.doctorName},</p>
+            <p>A follow-up reminder has been sent to ${patient.name} regarding their appointment on ${appointmentDetails.appointmentDate}.</p>
+            ${appointmentDetails.followUpNeeded ? `
+              <p>They have been reminded of their follow-up appointment scheduled for ${appointmentDetails.followUpDate}.</p>
+            ` : '<p>No follow-up appointment has been scheduled.</p>'}
+            <p>Thank you,<br>Health AI Companion Team</p>
+          `;
           
-          await twilioService.sendDoctorNotification(doctor.phone, {
-            doctorName: doctor.name,
-            message: doctorMessage,
-            date: appointmentDetails.appointmentDate,
-            time: new Date(appointment.date).toLocaleTimeString(),
-            hospitalName: 'Your Hospital' // This should be fetched from appointment details
-          });
+          await sendEmail(doctor.email, doctorSubject, doctorMessage);
+          
+          console.log(`Sent email follow-up notification to doctor: ${doctor.email}`);
         }
       }
     } catch (error) {
@@ -270,23 +304,54 @@ class ReminderWorker {
         reason: appointment.reason || 'Not specified'
       };
 
-      // Send reminder to patient
-      if (patient.phone) {
-        await twilioService.sendAppointmentReminder(patient.phone, {
-          ...appointmentDetails,
-          reminderType
-        });
+      // Get time description for reminder
+      const timeDescription = reminderType === '24-hour' ? '24 hours' : 
+                             reminderType === '2-hour' ? '2 hours' : '1 hour';
+
+      // Send reminder to patient via email
+      if (patient.email) {
+        const patientSubject = `Appointment Reminder: Your appointment is in ${timeDescription}`;
+        const patientMessage = `
+          <h2>Appointment Reminder</h2>
+          <p>Hello ${appointmentDetails.patientName},</p>
+          <p>This is a reminder that you have an appointment in <strong>${timeDescription}</strong>.</p>
+          <p><strong>Details:</strong></p>
+          <ul>
+            <li><strong>Doctor:</strong> ${appointmentDetails.doctorName}</li>
+            <li><strong>Date:</strong> ${appointmentDetails.date}</li>
+            <li><strong>Time:</strong> ${appointmentDetails.time}</li>
+            <li><strong>Location:</strong> ${appointmentDetails.hospitalName}</li>
+            <li><strong>Reason:</strong> ${appointmentDetails.reason}</li>
+          </ul>
+          <p>Please arrive 15 minutes early to complete any necessary paperwork.</p>
+          <p>If you need to reschedule, please contact us as soon as possible.</p>
+          <p>Thank you,<br>Health AI Companion Team</p>
+        `;
+        
+        await sendEmail(patient.email, patientSubject, patientMessage);
+        console.log(`Sent email reminder to patient: ${patient.email}`);
       }
 
-      // Send reminder to doctor
-      if (doctor.phone) {
-        await twilioService.sendDoctorNotification(doctor.phone, {
-          doctorName: doctor.name,
-          message: `Reminder: You have an appointment in ${reminderType === '24-hour' ? '24 hours' : reminderType === '2-hour' ? '2 hours' : '1 hour'}`,
-          date: appointmentDetails.date,
-          time: appointmentDetails.time,
-          hospitalName: hospital.name
-        });
+      // Send reminder to doctor via email
+      if (doctor.email) {
+        const doctorSubject = `Upcoming Appointment Reminder: ${appointmentDetails.patientName} in ${timeDescription}`;
+        const doctorMessage = `
+          <h2>Appointment Reminder</h2>
+          <p>Hello Dr. ${appointmentDetails.doctorName},</p>
+          <p>This is a reminder that you have an appointment in <strong>${timeDescription}</strong>.</p>
+          <p><strong>Details:</strong></p>
+          <ul>
+            <li><strong>Patient:</strong> ${appointmentDetails.patientName}</li>
+            <li><strong>Date:</strong> ${appointmentDetails.date}</li>
+            <li><strong>Time:</strong> ${appointmentDetails.time}</li>
+            <li><strong>Location:</strong> ${appointmentDetails.hospitalName}</li>
+            <li><strong>Reason:</strong> ${appointmentDetails.reason}</li>
+          </ul>
+          <p>Thank you,<br>Health AI Companion Team</p>
+        `;
+        
+        await sendEmail(doctor.email, doctorSubject, doctorMessage);
+        console.log(`Sent email reminder to doctor: ${doctor.email}`);
       }
 
       // Save reminder records

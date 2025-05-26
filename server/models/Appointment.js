@@ -41,6 +41,36 @@ const appointmentSchema = new mongoose.Schema({
   notes: {
     type: String
   },
+  phoneNumber: {
+    type: String,
+    trim: true
+  },
+  reminderPreferences: {
+    sms: {
+      type: Boolean,
+      default: false
+    },
+    whatsapp: {
+      type: Boolean,
+      default: true
+    },
+    email: {
+      type: Boolean,
+      default: false
+    },
+    intervals: {
+      type: [Number],
+      default: [24, 1]  // Default reminders at 24 hours and 1 hour before appointment
+    }
+  },
+  remindersSent: [{
+    type: {
+      type: String,
+      enum: ['sms', 'whatsapp', 'email']
+    },
+    sentAt: Date,
+    successful: Boolean
+  }],
   symptoms: [{
     type: String,
     trim: true

@@ -173,6 +173,11 @@ const DoctorDashboardPage = () => {
 
   // Ensure medicalRecords is always an array
   const medicalRecords = medicalRecordsData?.records || [];
+  
+  // Function to handle appointment status updates
+  const handleAppointmentStatus = (appointmentId: number | string, status: string) => {
+    updateAppointmentStatusMutation.mutate({ appointmentId: Number(appointmentId), status });
+  };
 
   // Fetch doctor's schedule
   const { data: schedule, refetch: refetchSchedule } = useQuery<Schedule[]>({
@@ -239,6 +244,7 @@ const DoctorDashboardPage = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/doctors/appointments"] });
+      queryClient.invalidateQueries({ queryKey: ["/doctor-dashboard/appointments"] }); // Also invalidate dashboard queries
       toast({
         title: "Appointment Updated",
         description: "The appointment status has been updated successfully.",

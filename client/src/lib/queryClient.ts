@@ -1,6 +1,7 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
-const API_BASE_URL = '/api';
+// Point to the backend server running on port 3001
+const API_BASE_URL = 'http://localhost:3000/api';
 
 // Custom API Error class
 class APIError extends Error {
@@ -58,9 +59,21 @@ export async function apiRequest<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
-  // Ensure the endpoint has a leading slash and avoid duplicating '/api'
-  const normalizedEndpoint = endpoint.startsWith('/api') ? endpoint : endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-  const url = normalizedEndpoint.startsWith('/api') ? normalizedEndpoint : `${API_BASE_URL}${normalizedEndpoint}`;
+  // Strip off any leading '/api' as it's already in the API_BASE_URL
+  let cleanEndpoint = endpoint;
+  if (cleanEndpoint.startsWith('/api/')) {
+    cleanEndpoint = cleanEndpoint.substring(4); // Remove '/api'
+  } else if (cleanEndpoint.startsWith('api/')) {
+    cleanEndpoint = cleanEndpoint.substring(3); // Remove 'api'
+  }
+  
+  // Ensure the endpoint has a leading slash
+  if (!cleanEndpoint.startsWith('/')) {
+    cleanEndpoint = '/' + cleanEndpoint;
+  }
+  
+  // Construct the full URL
+  const url = API_BASE_URL + cleanEndpoint;
   
   // Start with clean headers
   const headers: Record<string, string> = {
@@ -81,8 +94,9 @@ export async function apiRequest<T>(
     ...(options.headers || {}),
   };
 
+  // Simplify fetch options to avoid CORS issues
   const finalOptions = {
-    credentials: 'include' as const,
+    mode: 'cors' as const,
     ...options,
     headers: finalHeaders,
   };
@@ -153,7 +167,25 @@ export const getQueryFn: <T>(options: {
         headers['Authorization'] = `Bearer ${token}`;
       }
 
-      const res = await fetch(`${API_BASE_URL}${queryKey[0]}`, {
+      // Get the endpoint from queryKey
+      let endpoint = queryKey[0] as string;
+      
+      // Strip off any leading '/api' as it's already in the API_BASE_URL
+      if (endpoint.startsWith('/api/')) {
+        endpoint = endpoint.substring(4); // Remove '/api'
+      } else if (endpoint.startsWith('api/')) {
+        endpoint = endpoint.substring(3); // Remove 'api'
+      }
+      
+      // Ensure the endpoint has a leading slash
+      if (!endpoint.startsWith('/')) {
+        endpoint = '/' + endpoint;
+      }
+      
+      // Construct the full URL
+      const url = API_BASE_URL + endpoint;
+      
+      const res = await fetch(url, {
         credentials: "include",
         headers
       });

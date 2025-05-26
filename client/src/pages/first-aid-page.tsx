@@ -3,13 +3,27 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import FirstAidCard from "@/components/ui/first-aid-card";
-import { FirstAidTip } from "@shared/schema";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { motion } from "framer-motion";
+import { Search, Phone, AlertTriangle, Info, Heart, ArrowRight, X, Filter, ExternalLink, PlusCircle, Bookmark } from "lucide-react";
+
+// Define FirstAidTip interface locally since it might not be available in schema
+interface FirstAidTip {
+  id: number;
+  title: string;
+  content: string;
+  category: string;
+  steps?: string[];
+  imageUrl?: string;
+}
 
 const FirstAidPage = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [expandedTipId, setExpandedTipId] = useState<number | null>(null);
+  const [activeTab, setActiveTab] = useState("emergency");
 
   // Fetch first aid tips from API
   const { data: firstAidTips, isLoading } = useQuery<FirstAidTip[]>({
@@ -41,13 +55,18 @@ const FirstAidPage = () => {
 
   // Categories for filtering
   const categories = [
-    { name: "CPR", value: "cpr" },
-    { name: "Bleeding", value: "bleeding" },
-    { name: "Burns", value: "burns" },
-    { name: "Choking", value: "choking" },
-    { name: "Fractures", value: "fractures" },
-    { name: "Heat Stroke", value: "heatstroke" }
+    { name: "CPR", value: "cpr", icon: <Heart className="w-4 h-4" /> },
+    { name: "Bleeding", value: "bleeding", icon: <AlertTriangle className="w-4 h-4" /> },
+    { name: "Burns", value: "burns", icon: <AlertTriangle className="w-4 h-4" /> },
+    { name: "Choking", value: "choking", icon: <AlertTriangle className="w-4 h-4" /> },
+    { name: "Fractures", value: "fractures", icon: <AlertTriangle className="w-4 h-4" /> },
+    { name: "Heat Stroke", value: "heatstroke", icon: <AlertTriangle className="w-4 h-4" /> }
   ];
+  
+  const clearSearch = () => {
+    setSearchQuery("");
+    setSelectedCategory(null);
+  };
 
   return (
     <section className="py-8 md:py-12 bg-gradient-to-br from-red-50 to-orange-50 dark:from-gray-800 dark:to-gray-900">

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -7,7 +7,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Doctor, Hospital } from "@shared/schema";
-import { ArrowLeft, Check, FileText, Heart, Info, MessageSquare, Star, User, X, XCircle, Loader2, Calendar, Clock } from 'lucide-react';
+import { ArrowLeft, Check, CheckCircle, FileText, Heart, Info, MessageSquare, Star, User, X, XCircle, Loader2, Calendar, Clock } from 'lucide-react';
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
@@ -26,9 +26,10 @@ interface TimeSlot {
 
 const BookingPage = () => {
   const { hospitalId } = useParams();
+  const [, setLocation] = useLocation();
   const { user } = useAuth();
   const { toast } = useToast();
-  const [selectedDoctor, setSelectedDoctor] = useState<number | null>(null);
+  const [selectedDoctor, setSelectedDoctor] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [bookingStep, setBookingStep] = useState<'doctor' | 'datetime' | 'confirm'>('doctor');
@@ -54,11 +55,30 @@ const BookingPage = () => {
       const res = await apiRequest<{ success: boolean; doctors: Doctor[] }>(`/hospitals/${hospitalId}/doctors`, {
         method: "GET"
       });
+      
+      // Debug the doctor data structure
+      console.log('Doctor data from API:', JSON.stringify(res.doctors, null, 2));
+      
+      if (res.doctors && res.doctors.length > 0) {
+        console.log('First doctor ID:', res.doctors[0]._id || res.doctors[0].id);
+        console.log('First doctor ID type:', typeof (res.doctors[0]._id || res.doctors[0].id));
+      }
+      
       return res.doctors;
     },
     enabled: !!hospitalId,
   });
 
+  // Auto-select the first doctor when the list loads
+  useEffect(() => {
+    if (doctors && doctors.length > 0 && !selectedDoctor) {
+      const firstDoctor = doctors[0];
+      const doctorId = firstDoctor._id || firstDoctor.id;
+      console.log('Auto-selecting first doctor:', doctorId);
+      setSelectedDoctor(doctorId);
+    }
+  }, [doctors, selectedDoctor]);
+  
   // Get doctor schedules for this hospital
   const { data: doctorSchedules, isLoading: isLoadingSchedules } = useQuery({
     queryKey: [`/api/hospitals/schedules`, hospitalId, selectedDoctor],
@@ -88,8 +108,8 @@ const BookingPage = () => {
               { dayOfWeek: 1, startTime: '09:00', endTime: '17:00' },
               { dayOfWeek: 2, startTime: '10:00', endTime: '15:00' },
               { dayOfWeek: 3, startTime: '09:00', endTime: '17:00' },
-              { dayOfWeek: 4, startTime: '09:00', endTime: '16:00' },
-              { dayOfWeek: 5, startTime: '09:00', endTime: '12:00' }
+              { dayOfWeek: 4, startTime: '11:00', endTime: '18:00' },
+              { dayOfWeek: 5, startTime: '09:00', endTime: '17:00' },
             ]
           }));
         }
@@ -98,183 +118,17 @@ const BookingPage = () => {
     },
     enabled: !!hospitalId && !!doctors,
   });
-  
-  // Get doctor's availability status
-  const { data: doctorAvailability, isLoading: isLoadingAvailability } = useQuery({
-    queryKey: [`/api/doctors/availability`, selectedDoctor],
-    queryFn: async () => {
-      if (!selectedDoctor) return null;
-      try {
-        // Fetch the doctor's details including availability status
-        const res = await apiRequest<{ success: boolean; doctor: any }>(
-          `/doctors/${selectedDoctor}`,
-          { method: "GET" }
-        );
-        
-        console.log('Doctor availability response:', res);
-        
-        // Just return the doctor object which should include the 'availability' field
-        return res.doctor || null;
-      } catch (error) {
-        console.error('Error fetching doctor availability:', error);
-        return null;
-      }
-    },
-    enabled: !!selectedDoctor,
-  });
-
-  // Helper function to convert day number to day name
-  const getDayName = (dayNumber: number): string => {
-    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    return days[dayNumber % 7];
-  };
-  
-  // Helper function to check if a doctor is available
-  const isDoctorAvailable = (doctorId: number): boolean => {    
-    // Check doctor availability in the database
-    if (doctorAvailability) {
-      // Check if the doctor has "Available" status
-      return doctorAvailability.availability === "Available";
-    }
-    
-    return false;
-  };
-
-  // Generate time slots based on doctor's availability status
-  const generateTimeSlots = (doctorId: number, date: string): TimeSlot[] => {
-    const slots: TimeSlot[] = [];
-    const dateObj = new Date(date);
-    const dayOfWeek = dateObj.getDay(); // 0 = Sunday, 1 = Monday, etc.
-    
-    console.log('Generating time slots for day of week:', dayOfWeek);
-    console.log('Doctor availability data:', doctorAvailability);
-    
-    // Default business hours
-    const startHour = 9;
-    const endHour = 17;
-    
-    // Only generate slots if the doctor is marked as available
-    if (doctorAvailability && doctorAvailability.availability === "Available") {
-      // If the doctor is available, generate standard business hour slots for weekdays
-      // For weekends, provide more limited hours
-      
-      // Define business hours based on day of week
-      let actualStartHour = startHour;
-      let actualEndHour = endHour;
-      
-      // Weekend hours (Saturday and Sunday)
-      if (dayOfWeek === 0 || dayOfWeek === 6) {
-        actualStartHour = 10; // Later start on weekends
-        actualEndHour = 14;   // Earlier end on weekends
-      }
-      
-      // Generate 30-minute slots within business hours
-      for (let hour = actualStartHour; hour < actualEndHour; hour++) {
-        for (let minute = 0; minute < 60; minute += 30) {
-          // Skip slots that would go past the end hour
-          if (hour === actualEndHour - 1 && minute >= 30) continue;
-          
-          const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
-          slots.push({
-            time: timeString,
-            available: true,
-          });
-        }
-      }
-      
-      console.log(`Generated ${slots.length} available time slots for doctor ${doctorId} on ${date}`);
-    } else {
-      console.log(`Doctor ${doctorId} is not available or not found`);
-    }
-    
-    return slots;
-  };
-
-  // Get available dates for the next 14 days
-  const { data: doctorAvailableDates, isLoading: isLoadingAvailableDates } = useQuery({
-    queryKey: [`/api/doctor-dashboard/available-dates`, selectedDoctor],
-    queryFn: async () => {
-      if (!selectedDoctor) return { availableDates: [] };
-      
-      try {
-        // First try to get doctor's specific available dates
-        const res = await apiRequest<{ success: boolean; availableDates: any[] }>(
-          `/api/doctor-dashboard/available-dates?doctorId=${selectedDoctor}`,
-          { method: "GET" }
-        );
-        console.log('Doctor available dates response:', res);
-        return res;
-      } catch (error) {
-        console.error('Error fetching doctor available dates:', error);
-        return { availableDates: [] };
-      }
-    },
-    enabled: !!selectedDoctor,
-  });
-
-  // Get available dates based on doctor's specific selections or fall back to the next 14 days
-  const getAvailableDates = (): string[] => {
-    const dates: string[] = [];
-    
-    // If the doctor has specific available dates, use those
-    if (doctorAvailableDates?.availableDates && doctorAvailableDates.availableDates.length > 0) {
-      console.log('Using doctor\'s specific available dates:', doctorAvailableDates.availableDates);
-      return doctorAvailableDates.availableDates.map(dateObj => {
-        const date = new Date(dateObj.date);
-        return date.toISOString().split('T')[0];
-      });
-    }
-    
-    // Otherwise fall back to the next 14 days
-    console.log('No specific dates found, using next 14 days as fallback');
-    const today = new Date();
-    for (let i = 0; i < 14; i++) {
-      const date = new Date();
-      date.setDate(today.getDate() + i);
-      const formattedDate = date.toISOString().split('T')[0];
-      dates.push(formattedDate);
-    }
-    return dates;
-  };
-
-  // Notes form schema
-  const notesSchema = z.object({
-    notes: z.string().optional(),
-    reminderPreferences: z.object({
-      sms: z.boolean().default(false),
-      whatsapp: z.boolean().default(false),
-      email: z.boolean().default(false),
-      intervals: z.array(z.number()).default([24, 1]) // Default to 24h and 1h before
-    }).default({
-      sms: false,
-      whatsapp: false,
-      email: false,
-      intervals: [24, 1]
-    })
-  });
-
-  // Notes form
-  const notesForm = useForm<z.infer<typeof notesSchema>>({
-    resolver: zodResolver(notesSchema),
-    defaultValues: {
-      notes: "",
-      reminderPreferences: {
-        sms: false,
-        whatsapp: false,
-        email: false,
-        intervals: [24, 1]
-      }
-    },
-  });
 
   // Book appointment mutation
   const bookAppointmentMutation = useMutation({
     mutationFn: async (data: { 
-      doctorId: number | null; 
-      hospitalId: number | string; 
+      doctorId: string; 
+      hospitalId: string;
+      patientId: string;
       date: string; 
       time: string;
       notes?: string;
+      phoneNumber?: string;
       reminderPreferences: {
         sms: boolean;
         whatsapp: boolean;
@@ -282,42 +136,40 @@ const BookingPage = () => {
         intervals: number[];
       };
     }) => {
-      // Create the appointment
-      const res = await apiRequest("POST", "/api/appointments", data);
-      const appointmentData = await res.json();
+      console.log('Submitting appointment with data:', data);
       
-      // If appointment creation was successful, update its status to confirmed
-      if (appointmentData.success && appointmentData.appointment) {
-        try {
-          // Confirm the appointment immediately to trigger WhatsApp notifications
-          const confirmRes = await apiRequest(
-            "PATCH", 
-            `/api/appointments/${appointmentData.appointment._id}/status`, 
-            { status: "confirmed" }
-          );
-          console.log("Appointment confirmed:", await confirmRes.json());
-        } catch (error) {
-          console.error("Error confirming appointment:", error);
-        }
+      try {
+        // Format the request properly for the API
+        const response = await apiRequest<any>('/api/appointments', {
+          method: 'POST',
+          body: JSON.stringify(data)
+        });
+        
+        console.log('Appointment creation response:', response);
+        
+        return response;
+      } catch (error) {
+        console.error('Error creating appointment:', error);
+        throw error;
       }
-      
-      return appointmentData;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log('Appointment created successfully:', data);
+      
+      // Invalidate appointments query to refresh data
       queryClient.invalidateQueries({ queryKey: ["/api/appointments"] });
       
       toast({
         title: "Appointment Booked",
-        description: "Your appointment has been booked successfully! WhatsApp notifications have been sent to both you and the doctor with the appointment details.",
+        description: "Your appointment has been booked successfully! Email notifications have been sent to both you and the doctor with the appointment details.",
         variant: "default",
       });
       
-      // Redirect to dashboard after successful booking
-      setTimeout(() => {
-        window.location.href = "/dashboard";
-      }, 3000); // Give user 3 seconds to read the toast message
+      // Redirect to dashboard/appointments
+      setLocation("/dashboard/appointments");
     },
-    onError: () => {
+    onError: (error) => {
+      console.error('Error in appointment mutation:', error);
       toast({
         title: "Booking Failed",
         description: "Failed to book your appointment. Please try again.",
@@ -332,107 +184,64 @@ const BookingPage = () => {
     
     console.log(`Getting time slots for doctor ${doctorId} on ${date}`);
     
-    // Check if we have specific available dates for this doctor
-    if (doctorAvailableDates?.availableDates && doctorAvailableDates.availableDates.length > 0) {
-      // Find the specific date in the doctor's available dates
-      const specificDate = doctorAvailableDates.availableDates.find(dateObj => {
-        const availableDate = new Date(dateObj.date).toISOString().split('T')[0];
-        return availableDate === date;
-      });
-      
-      if (specificDate) {
-        console.log('Found specific available date with time range:', specificDate);
-        
-        // Parse the specific time range for this date
-        const timeRange = specificDate.timeRange || { startTime: "09:00", endTime: "17:00" };
-        const [startHour, startMin] = timeRange.startTime.split(':').map(Number);
-        const [endHour, endMin] = timeRange.endTime.split(':').map(Number);
-        
-        // Convert to minutes for easier calculation
-        const startTimeMinutes = startHour * 60 + startMin;
-        const endTimeMinutes = endHour * 60 + endMin;
-        
-        // Generate 30-minute slots between start and end time
-        const slots: TimeSlot[] = [];
-        for (let time = startTimeMinutes; time < endTimeMinutes; time += 30) {
-          const hour = Math.floor(time / 60);
-          const min = time % 60;
-          const timeString = `${hour.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`;
-          
-          slots.push({
-            time: timeString,
-            available: true
-          });
-        }
-        
-        console.log(`Generated ${slots.length} time slots for doctor ${doctorId} on specific date ${date}`);
-        return slots;
-      }
-      
-      console.log(`Doctor has specific available dates but not for ${date}`);
-      return [];
-    }
-    
-    // Fall back to weekly schedule if no specific dates are available
-    if (!doctorSchedules) return [];
-    
-    // Find the doctor's schedule
-    const doctorSchedule = doctorSchedules.find(schedule => schedule.doctor._id === doctorId);
-    if (!doctorSchedule) {
-      console.log('No schedule found for this doctor');
-      return [];
-    }
-    
-    // Get the day of week for the selected date (0 = Sunday, 1 = Monday, etc.)
-    const selectedDateObj = new Date(date);
-    const dayOfWeek = selectedDateObj.getDay(); // 0 = Sunday, 1 = Monday, etc.
-    
-    // Find the schedule for this day of week
-    const daySchedule = doctorSchedule.schedules.find(schedule => schedule.dayOfWeek === dayOfWeek);
-    if (!daySchedule) {
-      console.log(`Doctor doesn't work on day ${dayOfWeek}`);
-      return [];
-    }
-    
-    console.log('Found weekly schedule for day:', daySchedule);
-    
-    // Parse start and end times
-    const [startHour, startMin] = daySchedule.startTime.split(':').map(Number);
-    const [endHour, endMin] = daySchedule.endTime.split(':').map(Number);
-    
-    // Convert to minutes for easier calculation
-    const startTimeMinutes = startHour * 60 + startMin;
-    const endTimeMinutes = endHour * 60 + endMin;
-    
-    // Generate 30-minute slots between start and end time
+    // For demonstration, generate time slots between 9am and 5pm every 30 minutes
     const slots: TimeSlot[] = [];
-    for (let time = startTimeMinutes; time < endTimeMinutes; time += 30) {
-      const hour = Math.floor(time / 60);
-      const min = time % 60;
-      const timeString = `${hour.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`;
-      
-      slots.push({
-        time: timeString,
-        available: true
-      });
+    const startHour = 9;
+    const endHour = 17;
+    
+    for (let hour = startHour; hour < endHour; hour++) {
+      for (let minute of [0, 30]) {
+        const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+        slots.push({
+          time: timeString,
+          available: true
+        });
+      }
     }
     
-    console.log(`Generated ${slots.length} time slots for doctor ${doctorId} on ${date} from weekly schedule`);
     return slots;
   };
 
+  // Get available slots for the selected date
   const getAvailableSlots = (date: string) => {
-    // Mock available slots - in a real app, this would come from the API
-    const slots = [];
-    for (let hour = 9; hour <= 17; hour++) {
-      slots.push(`${hour}:00`);
-      if (hour !== 17) slots.push(`${hour}:30`);
-    }
-    return slots;
+    if (!selectedDoctor || !date) return [];
+    return getDoctorTimeSlots(selectedDoctor, date);
   };
 
-  // Handle booking submission
-  const [, setLocation] = useLocation();
+  // Notes form schema
+  const notesSchema = z.object({
+    notes: z.string().optional(),
+    phoneNumber: z.string().optional()
+      .refine(val => !val || /^\+?[0-9]{10,15}$/.test(val), {
+        message: "Phone number must be valid (10-15 digits)"
+      }),
+    reminderPreferences: z.object({
+      sms: z.boolean().default(false),
+      whatsapp: z.boolean().default(false),
+      email: z.boolean().default(true),
+      intervals: z.array(z.number()).default([24, 1]) // Default to 24h and 1h before
+    }).default({
+      sms: false,
+      whatsapp: false,
+      email: true,
+      intervals: [24, 1]
+    })
+  });
+
+  // Notes form
+  const notesForm = useForm<z.infer<typeof notesSchema>>({
+    resolver: zodResolver(notesSchema),
+    defaultValues: {
+      notes: "",
+      phoneNumber: "",
+      reminderPreferences: {
+        sms: false,
+        whatsapp: false,
+        email: true,
+        intervals: [24, 1]
+      }
+    },
+  });
 
   const handleBooking = (formData: z.infer<typeof notesSchema>) => {
     console.log('Booking attempt with values:', {
@@ -440,25 +249,31 @@ const BookingPage = () => {
       selectedDate,
       selectedTime,
       hospitalId,
-      user: user ? `User found: ${user.username}` : 'No user',
-      isLoggedIn: !!user,
-      userRole: user?.role || 'none'
+      user: user ? `User found: ${user.name}` : 'No user found',
+      formData
     });
-
-    if (!selectedDoctor || !selectedDate || !selectedTime) {
+    
+    // Ensure we have a doctor selected
+    if (!selectedDoctor && doctors && doctors.length > 0) {
+      console.log('Auto-selecting first doctor:', doctors[0]);
+      setSelectedDoctor(doctors[0].id);
+      // We need to call handleBooking again after selecting the doctor
+      setTimeout(() => handleBooking(formData), 100);
+      return;
+    }
+    
+    // Check if all required fields are present
+    if (!selectedDoctor || !selectedDate || !selectedTime || !hospitalId) {
       toast({
+        variant: "destructive",
         title: "Missing information",
-        description: "Please select a doctor, date, and time before booking",
-        variant: "destructive"
+        description: `Please select a ${!selectedDoctor ? 'doctor' : !selectedDate ? 'date' : !selectedTime ? 'time' : 'hospital'} before confirming your booking.`
       });
-      // Send user back to the doctor selection step if doctor is missing
-      if (!selectedDoctor) {
-        setBookingStep('doctor');
-      }
       return;
     }
 
-    if (!user) {
+    // Check if user is logged in
+    if (!user || !user.id) {
       console.log('No authenticated user found, redirecting to login');
       toast({
         title: "Authentication required",
@@ -469,330 +284,333 @@ const BookingPage = () => {
       return;
     }
 
-    // Enhanced validation with more specific error messages
-    if (!selectedDoctor) {
-      toast({
-        title: "Doctor Required",
-        description: "Please select a doctor for your appointment.",
-        variant: "destructive",
-      });
-      return;
-    }
+    // Always use email notifications only
+    const reminderPreferences = {
+      email: true,      // Always enable email
+      sms: false,      // Disable SMS 
+      whatsapp: false, // Disable WhatsApp
+      intervals: [24, 1] // Default reminder times (24h and 1h before appointment)
+    };
 
-    if (typeof selectedDoctor !== 'number' && typeof selectedDoctor !== 'string') {
-      toast({
-        title: "Invalid Doctor Selection",
-        description: "Please select a valid doctor for your appointment.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!selectedDate) {
-      toast({
-        title: "Date Required",
-        description: "Please select a date for your appointment.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!selectedTime) {
-      toast({
-        title: "Time Required",
-        description: "Please select a time for your appointment.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!hospitalId) {
-      toast({
-        title: "Hospital Required",
-        description: "Hospital information is missing. Please try again.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Convert types appropriately before sending to API
-    const doctorIdValue = typeof selectedDoctor === 'string' ? selectedDoctor : String(selectedDoctor);
-    const hospitalIdValue = parseInt(hospitalId);
-
-    console.log('Submitting appointment with data:', {
-      doctorId: doctorIdValue,
-      hospitalId: hospitalIdValue,
-      date: selectedDate,
-      time: selectedTime,
-      notes: formData.notes
-    });
-
-    // Submit the appointment
-    if (!selectedDoctor) {
-      toast({
-        title: "Doctor not selected",
-        description: "Please select a doctor first",
-        variant: "destructive"
-      });
-      setBookingStep('doctor');
-      return;
-    }
-
-    bookAppointmentMutation.mutate({
+    // Format the appointment data
+    const appointmentData = {
       doctorId: selectedDoctor,
-      hospitalId: hospitalId || '',
-      date: selectedDate || '',
-      time: selectedTime || '',
-      notes: formData.notes,
-      reminderPreferences: {
-        sms: notesForm.getValues('reminderPreferences.sms'),
-        whatsapp: notesForm.getValues('reminderPreferences.whatsapp'),
-        email: notesForm.getValues('reminderPreferences.email'),
-        intervals: [24, 1]
-      }
-    });
+      hospitalId: hospitalId,
+      userId: user.id, // Server expects userId, not patientId
+      date: new Date(selectedDate), // Convert to proper Date object
+      time: selectedTime,
+      notes: formData.notes || '',
+      phoneNumber: formData.phoneNumber,
+      status: 'pending',
+      type: 'consultation',
+      reason: 'Medical appointment',
+      reminderPreferences: reminderPreferences
+    };
+    
+    console.log('Final appointment data:', appointmentData);
+    
+    // Check that doctorId is valid before submitting
+    if (!selectedDoctor || selectedDoctor === 'undefined') {
+      toast({
+        title: "Doctor Selection Error",
+        description: "Please select a doctor before booking. If the issue persists, please refresh the page.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    console.log('Submitting final appointment data:', appointmentData);
+    
+    // Create the booking
+    bookAppointmentMutation.mutate(appointmentData);
   };
 
   return (
-    <section className="container mx-auto px-4 py-8">
+    <section className="container py-8">
       <div className="max-w-4xl mx-auto">
-        <Tabs value={bookingStep} onValueChange={(value) => setBookingStep(value as typeof bookingStep)}>
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="doctor">Choose Doctor</TabsTrigger>
-            <TabsTrigger value="datetime">Select Date & Time</TabsTrigger>
-            <TabsTrigger value="confirm">Confirm Booking</TabsTrigger>
-          </TabsList>
+        <div className="flex items-center mb-8">
+          <Button variant="ghost" className="mr-2" onClick={() => setLocation('/')}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back
+          </Button>
+          <h1 className="text-3xl font-bold">Book an Appointment</h1>
+        </div>
 
-          {/* Step 1: Choose Doctor */}
-          <TabsContent value="doctor">
-            <Card>
-              <CardHeader>
-                <CardTitle>Select a Doctor</CardTitle>
-                <CardDescription>
-                  Choose from available doctors at {hospital?.name}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {doctors?.map((doctor) => (
-                    <Card 
-                      key={doctor.id} 
-                      className={`cursor-pointer ${selectedDoctor === doctor.id ? 'border-2 border-primary-500' : 'hover:border-gray-300'}`}
-                      onClick={() => {
-                        console.log('Setting selected doctor to:', doctor.id);
-                        setSelectedDoctor(doctor.id);
-                      }}
-                    >
-                      <CardContent className="p-4">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <h3 className="font-medium">{doctor.title || ''} {doctor.name || (doctor.firstName && doctor.lastName ? `${doctor.firstName} ${doctor.lastName}` : 'Doctor')}</h3>
-                            <p className="text-sm text-gray-500">{doctor.specialty}</p>
-                            <div className="mt-2 flex items-center">
-                              <Star className="h-4 w-4 text-yellow-400 mr-1" />
-                              <span className="text-sm text-gray-600">
-                                {doctor.rating || '4.5'} ({doctor.reviewCount || '24'} reviews)
-                              </span>
+        {isLoadingHospital ? (
+          <div className="flex justify-center items-center h-64">
+            <Loader2 className="h-8 w-8 animate-spin" />
+            <span className="ml-2">Loading hospital information...</span>
+          </div>
+        ) : !hospital ? (
+          <div className="text-center p-8 border rounded-lg">
+            <XCircle className="h-12 w-12 mx-auto text-red-500 mb-4" />
+            <h2 className="text-2xl font-bold mb-2">Hospital Not Found</h2>
+            <p className="text-gray-600 mb-4">
+              We couldn't find the hospital you're looking for. Please try again or contact support.
+            </p>
+            <Button onClick={() => setLocation('/')}>Return Home</Button>
+          </div>
+        ) : (
+          <Tabs defaultValue="doctor" value={bookingStep} onValueChange={(value) => setBookingStep(value as any)}>
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="doctor" disabled={bookingStep !== 'doctor'}>Select Doctor</TabsTrigger>
+              <TabsTrigger value="datetime" disabled={bookingStep !== 'datetime' && bookingStep !== 'doctor'}>
+                Choose Date & Time
+              </TabsTrigger>
+              <TabsTrigger value="confirm" disabled={bookingStep !== 'confirm' && bookingStep !== 'datetime'}>
+                Confirm Details
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="doctor">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Select a Doctor</CardTitle>
+                  <CardDescription>
+                    Choose a healthcare provider at {hospital.name}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {isLoadingDoctors ? (
+                    <div className="flex justify-center items-center h-32">
+                      <Loader2 className="h-6 w-6 animate-spin" />
+                      <span className="ml-2">Loading doctors...</span>
+                    </div>
+                  ) : !doctors || doctors.length === 0 ? (
+                    <div className="text-center p-4 border rounded-lg">
+                      <Info className="h-8 w-8 mx-auto text-blue-500 mb-2" />
+                      <h3 className="text-lg font-medium mb-1">No Doctors Available</h3>
+                      <p className="text-gray-600 text-sm">
+                        There are currently no doctors available at this hospital. Please try another hospital or contact support.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-6">
+                      {doctors.map((doctor) => (
+                        <div
+                          key={doctor._id || doctor.id}
+                          className={`p-4 border rounded-lg cursor-pointer transition-colors ${
+                            selectedDoctor === (doctor._id || doctor.id)
+                              ? "border-primary bg-primary/5"
+                              : "hover:border-primary/50"
+                          }`}
+                          onClick={() => {
+                            // Use either _id or id property depending on what's available
+                            const doctorId = doctor._id || doctor.id;
+                            console.log(`Selecting doctor with ID:`, doctorId);
+                            console.log(`Doctor object:`, doctor);
+                            
+                            // Make sure we have a valid ID
+                            if (!doctorId || doctorId === 'undefined') {
+                              console.error('Invalid doctor ID:', doctorId);
+                              toast({
+                                title: "Selection Error",
+                                description: "Could not select doctor. Please try again or refresh the page.",
+                                variant: "destructive",
+                              });
+                              return;
+                            }
+                            
+                            setSelectedDoctor(doctorId);
+                          }}
+                        >
+                          <div className="flex items-start">
+                            <div className="h-12 w-12 rounded-full bg-gray-200 flex items-center justify-center">
+                              <User className="h-6 w-6 text-gray-600" />
                             </div>
-                            <div className="mt-2">
-                              <Badge>{doctor.specialty}</Badge>
-                              {doctor.languages && (
-                                <Badge variant="outline" className="ml-2">
-                                  {Array.isArray(doctor.languages) 
-                                    ? doctor.languages.join(', ')
-                                    : doctor.languages}
+                            <div className="ml-4 flex-1">
+                              <div className="flex justify-between">
+                                <h3 className="font-medium">
+                                  Dr. {doctor.name || `${doctor.firstName || ''} ${doctor.lastName || ''}`}
+                                </h3>
+                                {selectedDoctor === doctor.id && (
+                                  <Check className="h-5 w-5 text-primary" />
+                                )}
+                              </div>
+                              <p className="text-sm text-gray-600">{doctor.specialty || "General Medicine"}</p>
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                <Badge variant="outline" className="flex items-center gap-1">
+                                  <Star className="h-3 w-3" />
+                                  4.8
                                 </Badge>
-                              )}
-                            </div>
-                          </div>
-                          
-                          {selectedDoctor === doctor.id && (
-                            <div className="flex flex-col items-end gap-2">
-                              <div className="h-6 w-6 bg-primary-500 rounded-full flex items-center justify-center">
-                                <Check className="h-4 w-4 text-white" />
+                                <Badge variant="outline" className="flex items-center gap-1">
+                                  <MessageSquare className="h-3 w-3" />
+                                  120+ Reviews
+                                </Badge>
+                                <Badge variant="outline" className="flex items-center gap-1">
+                                  <Heart className="h-3 w-3" />
+                                  Specializes in {doctor.specialty || "General Care"}
+                                </Badge>
                               </div>
                             </div>
-                          )}
+                          </div>
                         </div>
-                      </CardContent>
-                      {selectedDoctor === doctor.id && (
-                        <CardFooter>
-                          <Button 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              console.log('Doctor selected:', doctor);
-                              setBookingStep('datetime');
-                            }}
-                            className="w-full bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-500 dark:text-white dark:hover:bg-blue-600 border-0 font-bold"
-                          >
-                            Select This Doctor →
-                          </Button>
-                        </CardFooter>
-                      )}
-                    </Card>
-                  ))}
-                </div>
-              </CardContent>
-              <CardFooter className="flex justify-end">
-                <Button
-                  disabled={!selectedDoctor}
-                  onClick={() => setBookingStep('datetime')}
-                >
-                  Next: Choose Date & Time
-                </Button>
-              </CardFooter>
-            </Card>
-          </TabsContent>
-
-          {/* Step 2: Choose Date & Time */}
-          <TabsContent value="datetime">
-            <Card>
-              <CardHeader>
-                <CardTitle>Select Date & Time</CardTitle>
-                <CardDescription>
-                  Choose your preferred appointment date and time
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-6">
-                  <div>
-                    <h3 className="text-lg font-medium mb-4">Available Dates</h3>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                      {getAvailableDates().map((date) => (
-                        <Button
-                          key={date}
-                          variant={selectedDate === date ? "default" : "outline"}
-                          onClick={() => {
-                            console.log('Date selected:', date);
-                            setSelectedDate(date);
-                          }}
-                          className="mb-2"
-                        >
-                          {new Date(date).toLocaleDateString('en-US', {
-                            weekday: 'short',
-                            month: 'short',
-                            day: 'numeric'
-                          })}
-                        </Button>
                       ))}
                     </div>
-                  </div>
+                  )}
+                </CardContent>
+                <CardFooter className="flex justify-between">
+                  <Button variant="outline" onClick={() => setLocation('/')}>
+                    Cancel
+                  </Button>
+                  <Button
+                    disabled={!selectedDoctor}
+                    onClick={() => {
+                      console.log(`Moving to datetime step with doctor ID: ${selectedDoctor}`);
+                      // Double check that we have a valid doctor ID
+                      if (!selectedDoctor || selectedDoctor === 'undefined') {
+                        toast({
+                          title: "Doctor Selection Error",
+                          description: "Please select a doctor before proceeding.",
+                          variant: "destructive",
+                        });
+                        return;
+                      }
+                      setBookingStep('datetime');
+                    }}
+                  >
+                    Continue
+                  </Button>
+                </CardFooter>
+              </Card>
+            </TabsContent>
 
-                  <div>
-                    <h3 className="text-lg font-medium mb-4">Available Times</h3>
-                    <div className="grid grid-cols-3 md:grid-cols-4 gap-2">
-                      {selectedDate ? (
-                        <>
-                          {/* Generate default time slots even if doctor isn't marked available */}
-                          {[
-                            "09:00", "09:30", "10:00", "10:30", "11:00", "11:30",
-                            "12:00", "12:30", "13:00", "13:30", "14:00", "14:30",
-                            "15:00", "15:30", "16:00", "16:30"
-                          ].map(time => (
-                            <Button
-                              key={`time-${time}`}
-                              variant={selectedTime === time ? "default" : "outline"}
+            <TabsContent value="datetime">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Choose Date & Time</CardTitle>
+                  <CardDescription>
+                    Select an available date and time slot for your appointment
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid gap-6 md:grid-cols-2">
+                    <div>
+                      <h3 className="text-sm font-medium mb-3 flex items-center">
+                        <Calendar className="mr-2 h-4 w-4" /> Select Date
+                      </h3>
+                      
+                      <div className="grid grid-cols-3 gap-2">
+                        {/* Generate next 9 days from today */}
+                        {Array.from({ length: 9 }).map((_, i) => {
+                          const date = new Date();
+                          date.setDate(date.getDate() + i);
+                          const dateStr = date.toISOString().split('T')[0];
+                          const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
+                          const dayNum = date.getDate();
+                          
+                          return (
+                            <div
+                              key={dateStr}
+                              className={`p-2 border rounded-md text-center cursor-pointer ${
+                                selectedDate === dateStr
+                                  ? "border-primary bg-primary/5"
+                                  : "hover:border-primary/50"
+                              }`}
                               onClick={() => {
-                                console.log('Time selected:', time);
-                                setSelectedTime(time);
+                                setSelectedDate(dateStr);
+                                setSelectedTime(null);
                               }}
-                              className="w-full mb-2"
                             >
-                              {time}
-                            </Button>
-                          ))}
-                        </>
-                      ) : (
-                        <p className="text-gray-500 dark:text-gray-400">
+                              <div className="text-xs font-medium">{dayName}</div>
+                              <div className="text-lg">{dayNum}</div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <h3 className="text-sm font-medium mb-3 flex items-center">
+                        <Clock className="mr-2 h-4 w-4" /> Select Time
+                      </h3>
+                      
+                      {!selectedDate ? (
+                        <div className="p-4 border rounded-md text-center text-gray-500">
                           Please select a date first
-                        </p>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-3 gap-2">
+                          {getAvailableSlots(selectedDate).map((slot) => (
+                            <div
+                              key={slot.time}
+                              className={`p-2 border rounded-md text-center cursor-pointer ${
+                                !slot.available
+                                  ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                                  : selectedTime === slot.time
+                                  ? "border-primary bg-primary/5"
+                                  : "hover:border-primary/50"
+                              }`}
+                              onClick={() => {
+                                if (slot.available) {
+                                  setSelectedTime(slot.time);
+                                }
+                              }}
+                            >
+                              {slot.time}
+                            </div>
+                          ))}
+                        </div>
                       )}
                     </div>
                   </div>
-                </div>
-              </CardContent>
-              <CardFooter className="flex justify-between">
-                <Button 
-                  variant="outline" 
-                  onClick={() => setBookingStep('doctor')}
-                >
-                  Back: Choose Doctor
-                </Button>
-                <Button 
-                  disabled={!selectedDoctor || !selectedDate || !selectedTime} 
-                  onClick={() => {
-                    console.log('Proceeding to confirm step with:', {
-                      doctor: selectedDoctor,
-                      date: selectedDate,
-                      time: selectedTime
-                    });
-                    // Ensure the doctor is selected before proceeding
-                    if (!selectedDoctor) {
-                      toast({
-                        title: "Doctor not selected",
-                        description: "Please select a doctor before proceeding",
-                        variant: "destructive"
-                      });
-                      setBookingStep('doctor');
-                      return;
-                    }
-                    setBookingStep('confirm');
-                  }}
-                  className="bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-500 dark:text-white dark:hover:bg-blue-600"
-                >
-                  Next: Confirm Booking
-                </Button>
-              </CardFooter>
-            </Card>
-          </TabsContent>
+                </CardContent>
+                <CardFooter className="flex justify-between">
+                  <Button variant="outline" onClick={() => setBookingStep('doctor')}>
+                    Back
+                  </Button>
+                  <Button
+                    disabled={!selectedDate || !selectedTime}
+                    onClick={() => setBookingStep('confirm')}
+                  >
+                    Continue
+                  </Button>
+                </CardFooter>
+              </Card>
+            </TabsContent>
 
-          {/* Step 3: Confirm Booking */}
-          <TabsContent value="confirm">
-            <Card>
-              <CardHeader>
-                <CardTitle>Confirm Your Appointment</CardTitle>
-                <CardDescription>
-                  Review your appointment details before confirming
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <div className="space-y-4">
-                    <div>
-                      <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Hospital</h3>
-                      <p className="font-medium">{hospital?.name}</p>
-                      <p className="text-sm text-gray-600 dark:text-gray-300">{hospital?.address}</p>
-                    </div>
-                    
-                    <div>
-                      <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Doctor</h3>
-                      <p className="font-medium">
-                        {doctors?.find(d => d.id === selectedDoctor)?.name || `Doctor #${selectedDoctor}`}
-                      </p>
-                      <p className="text-sm text-gray-600 dark:text-gray-300">
-                        {doctors?.find(d => d.id === selectedDoctor)?.specialty || 'Specialist'}
-                      </p>
-                    </div>
-                    
-                    <div>
-                      <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Date & Time</h3>
-                      <div className="flex items-center gap-2 font-medium">
-                        <Calendar className="h-4 w-4 text-gray-500" />
-                        {selectedDate && new Date(selectedDate).toLocaleDateString('en-US', { 
-                          weekday: 'long',
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric'
-                        })}
+            <TabsContent value="confirm">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Confirm Appointment</CardTitle>
+                  <CardDescription>
+                    Review your appointment details and provide any additional information
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-6">
+                    <div className="bg-gray-50 p-4 rounded-lg space-y-3">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Hospital:</span>
+                        <span className="font-medium">{hospital.name}</span>
                       </div>
-                      <div className="flex items-center gap-2 text-gray-600 dark:text-gray-300">
-                        <Clock className="h-4 w-4 text-gray-500" />
-                        {selectedTime}
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Doctor:</span>
+                        <span className="font-medium">
+                          {doctors?.find(d => d.id === selectedDoctor)?.name || 'Selected Doctor'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Date:</span>
+                        <span className="font-medium">
+                          {selectedDate ? new Date(selectedDate).toLocaleDateString('en-US', {
+                            weekday: 'long',
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
+                          }) : ''}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Time:</span>
+                        <span className="font-medium">{selectedTime}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Appointment Type:</span>
+                        <span className="font-medium">Consultation</span>
                       </div>
                     </div>
-                  </div>
-                  
-                  <div>
+                    
                     <Form {...notesForm}>
                       <form onSubmit={notesForm.handleSubmit(handleBooking)} className="space-y-4">
                         <FormField
@@ -812,53 +630,44 @@ const BookingPage = () => {
                           )}
                         />
                         
+                        {/* Phone number field removed in favor of email-only notifications */}
+                        
                         <div className="space-y-4">
-                          <h3 className="text-sm font-medium">Reminder Preferences</h3>
-                          <div className="space-y-2">
-                            <div className="flex items-center space-x-2">
-                              <Checkbox
-                                id="sms"
-                                checked={notesForm.watch('reminderPreferences.sms')}
-                                onCheckedChange={(checked) => {
-                                  notesForm.setValue('reminderPreferences.sms', checked as boolean);
-                                }}
-                              />
-                              <Label htmlFor="sms">SMS Reminders</Label>
+                          <div className="p-4 border rounded-md bg-blue-50">
+                            <div className="flex items-center">
+                              <CheckCircle className="h-5 w-5 text-blue-500 mr-2" />
+                              <p className="text-sm font-medium text-blue-700">
+                                Email notifications will be sent for all appointment reminders
+                              </p>
                             </div>
-                            <div className="flex items-center space-x-2">
-                              <Checkbox
-                                id="email"
-                                checked={notesForm.watch('reminderPreferences.email')}
-                                onCheckedChange={(checked) => {
-                                  notesForm.setValue('reminderPreferences.email', checked as boolean);
-                                }}
-                              />
-                              <Label htmlFor="email">Email Reminders</Label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <Checkbox
-                                id="whatsapp"
-                                checked={notesForm.watch('reminderPreferences.whatsapp')}
-                                onCheckedChange={(checked) => {
-                                  notesForm.setValue('reminderPreferences.whatsapp', checked as boolean);
-                                }}
-                              />
-                              <Label htmlFor="whatsapp">WhatsApp Reminders</Label>
-                            </div>
+                            <p className="mt-1 text-xs text-blue-600">
+                              You will receive appointment confirmations and reminders at your account email address
+                            </p>
                           </div>
                         </div>
                         
-                        <Button type="submit" className="w-full">
-                          Confirm Booking
+                        <Button 
+                          type="submit" 
+                          className="w-full"
+                          disabled={bookAppointmentMutation.isPending}
+                        >
+                          {bookAppointmentMutation.isPending ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Processing...
+                            </>
+                          ) : (
+                            "Confirm Booking"
+                          )}
                         </Button>
                       </form>
                     </Form>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        )}
       </div>
     </section>
   );
