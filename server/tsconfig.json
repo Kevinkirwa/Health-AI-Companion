@@ -17,13 +17,13 @@
     "resolveJsonModule": true,
     "noEmit": false,
     "isolatedModules": true,
-    "typeRoots": ["./node_modules/@types", "./src/types"]
+    "typeRoots": ["./node_modules/@types", "./types"]
   },
   "ts-node": {
     "esm": true,
     "experimentalSpecifierResolution": "node"
   },
-  "include": ["src/**/*.ts", "src/types/**/*.d.ts"],
+  "include": ["src/**/*.ts", "types/**/*.d.ts"],
   "exclude": [
     "node_modules",
     "dist",

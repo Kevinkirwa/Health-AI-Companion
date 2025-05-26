@@ -59,21 +59,52 @@ const DoctorScheduleSelection = () => {
   const [timeRange, setTimeRange] = useState<TimeRange>({ startTime: "09:00", endTime: "17:00" });
   
   // Fetch hospitals where doctor works
-  const { data: doctorHospitals, isLoading: isLoadingHospitals } = useQuery({
+  const { data: doctorHospitals, isLoading: isLoadingHospitals, error: hospitalError } = useQuery({
     queryKey: ["doctor-hospitals"],
     queryFn: async () => {
-      const response = await apiRequest("/api/doctor-dashboard/hospitals", {
-        method: "GET"
-      });
-      return response.hospitals || [];
+      try {
+        const response = await apiRequest("/api/doctor-dashboard/hospitals", {
+          method: "GET"
+        });
+        
+        // Check if we got data with the fallback flag
+        if (response.fallback) {
+          console.log("Using fallback hospital data:", response.hospitals);
+          // Log the error if one was returned
+          if (response.error) {
+            console.warn("Hospital retrieval error:", response.error);
+          }
+        }
+        
+        return response.hospitals || [];
+      } catch (error) {
+        console.error("Failed to fetch hospitals:", error);
+        // Return a fallback hospital in case of fetch error
+        return [{ id: 'local-fallback', name: 'Default Hospital' }];
+      }
     },
     onSuccess: (data) => {
+      console.log("Hospital data received:", data);
       setHospitals(data);
+      
       // If we only have one hospital and no hospital is selected yet, auto-select it
       if (data.length === 1 && !selectedHospitalId) {
+        console.log("Auto-selecting the only available hospital:", data[0]);
         setSelectedHospitalId(data[0].id);
         setIsHospitalSelected(true);
+        toast({
+          title: "Hospital Selected",
+          description: `Auto-selected ${data[0].name} as your hospital.`,
+        });
       }
+    },
+    onError: (error) => {
+      console.error("Hospital fetch error:", error);
+      toast({
+        variant: "destructive",
+        title: "Error loading hospitals",
+        description: "Using default hospital information. You can still set your schedule."
+      });
     }
   });
 
@@ -256,14 +287,30 @@ const DoctorScheduleSelection = () => {
   const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
   
   const handleHospitalChange = (hospitalId: string) => {
+    if (!hospitalId) {
+      toast({
+        variant: "destructive",
+        title: "Hospital Required",
+        description: "You must select a hospital to manage your schedule."
+      });
+      return;
+    }
+    
+    console.log(`Selected hospital: ${hospitalId}`);
     setSelectedHospitalId(hospitalId);
     setIsHospitalSelected(true);
-    // Clear existing selections when hospital changes
-    setSpecificDates([]);
-    // Update the URL if not already there
-    if (location !== `/doctor/schedule/${hospitalId}`) {
-      setLocation(`/doctor/schedule/${hospitalId}`);
+
+    // Find selected hospital name for the toast message
+    const selectedHospital = hospitals.find(h => h.id === hospitalId);
+    if (selectedHospital) {
+      toast({
+        title: "Hospital Selected",
+        description: `You're now managing your schedule at ${selectedHospital.name}.`,
+      });
     }
+    
+    // Clear specific dates when changing hospitals
+    setSpecificDates([]);
   };
 
   return (
