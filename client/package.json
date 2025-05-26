@@ -5,7 +5,7 @@
   "description": "Client for Health AI Companion",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "tsc --emitDeclarationOnly && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
