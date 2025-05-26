@@ -3,43 +3,87 @@ const { ObjectId } = require('mongodb');
 class NotificationStorage {
   constructor(db) {
     this.db = db;
-    this.collection = db.collection('notifications');
+    this.collection = db ? db.collection('notifications') : null;
+    this.isConnected = !!this.collection;
+    
+    if (!this.isConnected) {
+      console.warn('NotificationStorage initialized without a valid database connection. Using mock mode.');
+    }
   }
 
   async createNotification(userId, data) {
-    const notification = {
-      userId: new ObjectId(userId),
-      type: data.type,
-      title: data.title,
-      message: data.message,
-      read: false,
-      createdAt: new Date(),
-      metadata: data.metadata || {}
-    };
+    if (!this.isConnected) {
+      console.warn('Attempted to create notification without database connection');
+      return { 
+        _id: 'mock-id-' + Date.now(),
+        userId,
+        type: data.type,
+        title: data.title,
+        message: data.message,
+        read: false,
+        createdAt: new Date(),
+        metadata: data.metadata || {}
+      };
+    }
+    
+    try {
+      const notification = {
+        userId: new ObjectId(userId),
+        type: data.type,
+        title: data.title,
+        message: data.message,
+        read: false,
+        createdAt: new Date(),
+        metadata: data.metadata || {}
+      };
 
-    const result = await this.collection.insertOne(notification);
-    return { ...notification, _id: result.insertedId };
+      const result = await this.collection.insertOne(notification);
+      return { ...notification, _id: result.insertedId };
+    } catch (error) {
+      console.error('Error creating notification:', error);
+      return null;
+    }
   }
 
   async getNotifications(userId) {
-    return await this.collection
-      .find({ userId: new ObjectId(userId) })
-      .sort({ createdAt: -1 })
-      .toArray();
+    if (!this.isConnected) {
+      console.warn('Attempted to get notifications without database connection');
+      return [];
+    }
+    
+    try {
+      return await this.collection
+        .find({ userId: new ObjectId(userId) })
+        .sort({ createdAt: -1 })
+        .toArray();
+    } catch (error) {
+      console.error('Error getting notifications:', error);
+      return [];
+    }
   }
 
   async markNotificationAsRead(notificationId, userId) {
-    const result = await this.collection.updateOne(
-      {
-        _id: new ObjectId(notificationId),
-        userId: new ObjectId(userId)
-      },
-      {
-        $set: { read: true }
-      }
-    );
+    if (!this.isConnected) {
+      console.warn('Attempted to mark notification as read without database connection');
+      return true; // Pretend it worked in mock mode
+    }
+    
+    try {
+      const result = await this.collection.updateOne(
+        {
+          _id: new ObjectId(notificationId),
+          userId: new ObjectId(userId)
+        },
+        {
+          $set: { read: true }
+        }
+      );
 
-    return result.modifiedCount > 0;
+      return result.modifiedCount > 0;
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+      return false;
+    }
   }
 
   async markAllNotificationsAsRead(userId) {

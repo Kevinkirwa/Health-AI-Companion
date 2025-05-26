@@ -30,9 +30,8 @@ const connectDatabase = async () => {
       maxPoolSize: 10,
       minPoolSize: 2,
       retryWrites: true,
-      w: 'majority',
-      keepAlive: true,
-      keepAliveInitialDelay: 300000    // 5 minutes
+      w: 'majority'
+      // Removed unsupported options: keepAlive and keepAliveInitialDelay
     };
     
     // Attempt connection
